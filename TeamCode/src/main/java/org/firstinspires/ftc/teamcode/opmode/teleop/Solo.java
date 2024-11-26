@@ -9,7 +9,6 @@ import org.firstinspires.ftc.teamcode.common.util.Alliance;
 
 public class Solo extends LinearOpMode {
     Robot robot = Robot.INSTANCE;
-    Alliance teamColor = Alliance.NONE;
 
     @Override
     public void runOpMode() {
@@ -25,10 +24,17 @@ public class Solo extends LinearOpMode {
                     .keyPress("left_bumper", () -> telemetry.addLine("Button.LEFT_BUMPER - Pressed"))
                     .keyUp("a", () -> telemetry.addLine("Button.A - KeyUp"))
                     .keyDown("a", () -> telemetry.addLine("Button.A - KeyDown"))
-                    .keyToggle("a", () -> telemetry.addLine("Button.A - KeyToggle"))
-                    .keyToggle("b", () -> telemetry.addLine("Button.B - KeyToggle"))
+                    .keyToggle("cross",
+                            () -> telemetry.addLine("Button.A - KeyToggle 1"),
+                            () -> telemetry.addLine("Button.A - KeyToggle 2")
+                    )
             ;
 
+            robot.drivetrain.driveRobotFieldCentric(
+                    gamepad1.left_stick_y,
+                    gamepad1.left_stick_x,
+                    gamepad1.right_stick_x
+            );
             telemetry.update();
         }
     }
@@ -37,7 +43,7 @@ public class Solo extends LinearOpMode {
     public static class SoloR extends Solo {
         @Override
         public void runOpMode() {
-            teamColor = Alliance.RED;
+            robot.teamColor = Alliance.RED;
             super.runOpMode();
         }
     }
@@ -46,7 +52,7 @@ public class Solo extends LinearOpMode {
     public static class SoloB extends Solo {
         @Override
         public void runOpMode() {
-            teamColor = Alliance.BLUE;
+            robot.teamColor = Alliance.BLUE;
             super.runOpMode();
         }
     }
