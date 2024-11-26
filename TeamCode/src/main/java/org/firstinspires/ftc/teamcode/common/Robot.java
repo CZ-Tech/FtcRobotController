@@ -5,10 +5,12 @@ import com.qualcomm.robotcore.hardware.HardwareMap;
 import com.qualcomm.robotcore.hardware.IMU;
 
 import org.firstinspires.ftc.robotcore.external.Telemetry;
+import org.firstinspires.ftc.teamcode.common.command.Command;
 import org.firstinspires.ftc.teamcode.common.drive.Drivetrain;
 import org.firstinspires.ftc.teamcode.common.hardware.GamepadEx;
-import org.firstinspires.ftc.teamcode.common.hardware.Odometry;
 import org.firstinspires.ftc.teamcode.common.subsystem.Subsystem;
+import org.firstinspires.ftc.teamcode.common.util.Alliance;
+import org.firstinspires.ftc.teamcode.common.util.OpModeState;
 import org.firstinspires.ftc.teamcode.common.vision.Vision;
 
 public enum Robot {
@@ -19,10 +21,12 @@ public enum Robot {
     public LinearOpMode opMode;
     public Drivetrain drivetrain;
     public Subsystem subsystem;
+    public Command command;
     public GamepadEx gamepad1;
     public GamepadEx gamepad2;
-    public Odometry odometry;
     public IMU imu;
+    public Alliance teamColor;
+    public OpModeState opModeState;
 
     /**
      * 初始化机器人
@@ -36,9 +40,9 @@ public enum Robot {
         this.vision = Vision.INSTANCE; //视觉模块
         this.drivetrain = Drivetrain.INSTANCE; //机器人控制函数
         this.subsystem = Subsystem.INSTANCE; //上层子系统
-        this.odometry = Odometry.INSTANCE; //里程计
         this.gamepad1 = new GamepadEx(opMode.gamepad1); //一个控制器
         this.gamepad2 = new GamepadEx(opMode.gamepad2); //另一个控制器
+        this.command = Command.INSTANCE;
 
 
         //获取并初始化陀螺仪
