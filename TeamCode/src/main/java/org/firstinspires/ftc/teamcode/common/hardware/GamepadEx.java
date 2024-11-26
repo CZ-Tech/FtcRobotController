@@ -35,11 +35,16 @@ public class GamepadEx extends Gamepad {
         return this;
     }
 
-    public GamepadEx keyToggle(String key, Runnable fn) {
+    public GamepadEx keyToggle(String key, Runnable fn1, Runnable fn2) {
         keyState.putIfAbsent(key, false);
-        if (getKey(currGamepad, key) && !getKey(prevGamepad, key))
+        if (getKey(currGamepad, key) && !getKey(prevGamepad, key)){
             keyState.computeIfPresent(key, (k, v) -> !v);
-        if (keyState.getOrDefault(key, false)) fn.run();
+            if (keyState.getOrDefault(key, false)){
+                fn1.run();
+            }else{
+                fn2.run();
+            }
+        }
         return this;
     }
 

@@ -8,6 +8,7 @@ import static org.firstinspires.ftc.teamcode.common.Globals.P_TURN_GAIN;
 
 import com.qualcomm.robotcore.hardware.DcMotor;
 import com.qualcomm.robotcore.hardware.DcMotorEx;
+import com.qualcomm.robotcore.hardware.DcMotorSimple;
 import com.qualcomm.robotcore.util.ElapsedTime;
 import com.qualcomm.robotcore.util.Range;
 
@@ -20,10 +21,10 @@ public enum Drivetrain {
     INSTANCE;
     private final Robot robot = Robot.INSTANCE;
 
-    private DcMotorEx driveLeftFront = null;
-    private DcMotorEx driveLeftBack = null;
-    private DcMotorEx driveRightFront = null;
-    private DcMotorEx driveRightBack = null;
+    public DcMotorEx driveLeftFront = null;
+    public DcMotorEx driveLeftBack = null;
+    public DcMotorEx driveRightFront = null;
+    public DcMotorEx driveRightBack = null;
 
     private double targetHeading = 0;
     private double turnSpeed = 0;
@@ -46,11 +47,6 @@ public enum Drivetrain {
         driveRightFront.setDirection(DcMotor.Direction.REVERSE);
         driveRightBack.setDirection(DcMotor.Direction.REVERSE);
 
-        //TODO: 测试底盘跑反可能是后轮有齿轮的原因，待测试
-//        driveLeftFront.setDirection(DcMotor.Direction.FORWARD);
-//        driveLeftBack.setDirection(DcMotor.Direction.REVERSE);
-//        driveRightFront.setDirection(DcMotor.Direction.REVERSE);
-//        driveRightBack.setDirection(DcMotor.Direction.FORWARD);
 
     }
 
@@ -108,7 +104,7 @@ public enum Drivetrain {
     }
 
 
-    private void setDrivePower(double leftFrontPower, double rightFrontPower, double leftBackPower, double rightBackPower) {
+    public void setDrivePower(double leftFrontPower, double rightFrontPower, double leftBackPower, double rightBackPower) {
         // Output the values to the motor drives.
         driveLeftFront.setPower(leftFrontPower);
         driveRightFront.setPower(rightFrontPower);
@@ -126,7 +122,7 @@ public enum Drivetrain {
     }
 
 
-    private void setRunMode(DcMotor.RunMode mode) {
+    public void setRunMode(DcMotor.RunMode mode) {
         driveLeftFront.setMode(mode);
         driveRightFront.setMode(mode);
         driveLeftBack.setMode(mode);
@@ -140,7 +136,7 @@ public enum Drivetrain {
         driveRightBack.setZeroPowerBehavior(behavior);
     }
 
-    private void setTargetPosition(int moveCounts) {
+    public void setTargetPosition(int moveCounts) {
         // Set Target FIRST, then turn on RUN_TO_POSITION
         driveLeftFront.setTargetPosition(driveLeftFront.getCurrentPosition() + moveCounts);
         driveRightFront.setTargetPosition(driveRightFront.getCurrentPosition() + moveCounts);
@@ -390,5 +386,12 @@ public enum Drivetrain {
         return this;
     }
 
+    public Drivetrain turnToHeading(double heading, double speed, double timeout) {
+        return turnToHeading(heading, speed, timeout, P_DRIVE_GAIN);
+    }
+
+    public Drivetrain turnToHeading(double heading, double speed) {
+        return turnToHeading(heading, speed, 5);
+    }
 
 }
