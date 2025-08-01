@@ -44,4 +44,12 @@ public class Globals {
             RevHubOrientationOnRobot.UsbFacingDirection.FORWARD
     );
 
+
+    // 以下是关于abs的数据, MOTORS_POWER_CURVE可不填，效果应该差不多
+    // TODO 待测！
+    public static final double[] MOTORS_POWER_CURVE = null;  // 四轮电机输出牵引力曲线,单位牛顿
+                                                             // 对应功率从0~1
+                                                             // 每个数值间对应功率相差大小相等
+    public static final double MAXIMUM_STATIC_FRICTION = 35;  // 最大静摩擦力，单位牛顿，用于计算刹车距离
+
 }
