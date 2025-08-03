@@ -8,6 +8,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
@@ -29,8 +30,10 @@ public class ListEventGamepad extends Gamepad {
     private final Map<Buttons, CopyOnWriteArrayList<Runnable>>
             registeredButtonRelease = initEventMap(new HashMap<>());
 
-    private final Map<Buttons, CopyOnWriteArrayList<Consumer<Boolean>>>
-            registeredButtonChange = initEventMap(new HashMap<>());
+    private final Map<Buttons, CopyOnWriteArrayList<Consumer<Integer>>>
+            registeredButtonToggle = initEventMap(new HashMap<>());
+
+    private final ConcurrentHashMap<Buttons, Integer> buttonState = new ConcurrentHashMap<>();
 
     private static <T> Map<Buttons, CopyOnWriteArrayList<T>>
     initEventMap(Map<Buttons, CopyOnWriteArrayList<T>> mapToInit) {
@@ -88,9 +91,12 @@ public class ListEventGamepad extends Gamepad {
                         Objects.requireNonNull(registeredButtonPress.get(button))) {
                     action.run();
                 }
-                for (Consumer<Boolean> action :
-                        Objects.requireNonNull(registeredButtonChange.get(button))) {
-                    action.accept(PRESS);
+                // 记录按钮被按下过的次数
+                CopyOnWriteArrayList<Consumer<Integer>> actions = registeredButtonToggle.get(button);
+                if (actions != null) { // 确保列表存在
+                    for (Consumer<Integer> action : actions) {
+                        action.accept(buttonState.computeIfAbsent(button, (ignored) -> 0));
+                    }
                 }
             }
             if (button.wasJustReleased(this)) {
@@ -98,64 +104,62 @@ public class ListEventGamepad extends Gamepad {
                         Objects.requireNonNull(registeredButtonRelease.get(button))) {
                     action.run();
                 }
-                for (Consumer<Boolean> action :
-                        Objects.requireNonNull(registeredButtonChange.get(button))) {
-                    action.accept(RELEASE);
-                }
             }
         }
     }
 
-    public ListEventGamepad onButtonPress(Buttons button, Runnable action) {
+    public ListEventGamepad onPress(Buttons button, Runnable action) {
         Objects.requireNonNull(registeredButtonPress.get(button)).add(action);
         return this;
     }
 
-    public ListEventGamepad onButtonPressAsync(Buttons button, Runnable action) {
+    public ListEventGamepad onPress(Buttons button, Consumer<Integer> action) {
+        Objects.requireNonNull(registeredButtonToggle.get(button)).add(action);
+        return this;
+    }
+
+    public ListEventGamepad onPressAsync(Buttons button, Runnable action) {
         Objects.requireNonNull(registeredButtonPress.get(button)).
                 add(new AsyncRunnable(action, getexecutor()));
         return this;
     }
 
-    public ListEventGamepad onButtonPressAsync(Buttons button, Runnable action, Executor executor) {
+    public ListEventGamepad onPressAsync(Buttons button, Consumer<Integer> action) {
+        Objects.requireNonNull(registeredButtonToggle.get(button)).
+                add(new AsyncConsumer<>(action, getexecutor()));
+        return this;
+    }
+
+    public ListEventGamepad onPressAsync(Buttons button, Runnable action, Executor executor) {
         Objects.requireNonNull(
                 registeredButtonPress.get(button)).add(new AsyncRunnable(action, executor)
         );
         return this;
     }
 
-    public ListEventGamepad onButtonRelease(Buttons button, Runnable action) {
+    public ListEventGamepad onPressAsync(Buttons button,
+                                         Consumer<Integer> action,
+                                         Executor executor) {
+        Objects.requireNonNull(
+                registeredButtonToggle.get(button)).add(new AsyncConsumer<>(action, executor)
+        );
+        return this;
+    }
+
+    public ListEventGamepad onRelease(Buttons button, Runnable action) {
         Objects.requireNonNull(registeredButtonRelease.get(button)).add(action);
         return this;
     }
 
-    public ListEventGamepad onButtonReleaseAsync(Buttons button, Runnable action) {
+    public ListEventGamepad onReleaseAsync(Buttons button, Runnable action) {
         Objects.requireNonNull(registeredButtonRelease.get(button)).
                 add(new AsyncRunnable(action, getexecutor()));
         return this;
     }
 
-    public ListEventGamepad onButtonReleaseAsync(Buttons button, Runnable action, Executor executor) {
+    public ListEventGamepad onReleaseAsync(Buttons button, Runnable action, Executor executor) {
         Objects.requireNonNull(
                 registeredButtonRelease.get(button)).add(new AsyncRunnable(action, executor)
-        );
-        return this;
-    }
-
-    public ListEventGamepad onButtonChange(Buttons button, Consumer<Boolean> action) {
-        Objects.requireNonNull(registeredButtonChange.get(button)).add(action);
-        return this;
-    }
-
-    public ListEventGamepad onButtonChangeAsync(Buttons button, Consumer<Boolean> action) {
-        Objects.requireNonNull(registeredButtonChange.get(button)).
-                add(new AsyncConsumer<>(action, getexecutor()));
-        return this;
-    }
-
-    public ListEventGamepad onButtonChangeAsync(Buttons button, Consumer<Boolean> action, Executor executor) {
-        Objects.requireNonNull(
-                registeredButtonChange.get(button)).add(new AsyncConsumer<>(action, executor)
         );
         return this;
     }

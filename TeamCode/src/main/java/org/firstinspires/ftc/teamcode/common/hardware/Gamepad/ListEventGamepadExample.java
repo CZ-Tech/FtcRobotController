@@ -9,19 +9,15 @@ public class ListEventGamepadExample extends LinearOpMode {
 
     @Override
     public void runOpMode() {
-        gamepad.onButtonPress(Buttons.A, () -> telemetry.addLine("Button.A - Pressed"));
-        gamepad.onButtonPress(Buttons.LEFT_STICK_BUTTON,
+        gamepad.onPress(Buttons.A, () -> telemetry.addLine("Button.A - Pressed"));
+        gamepad.onPress(Buttons.LEFT_STICK_BUTTON,
                 () -> telemetry.addLine("Button.LEFT_STICK_BUTTON - Pressed"));
-        gamepad.onButtonPress(Buttons.DPAD_UP, () -> telemetry.addLine("DPAD_UP pressed"))
-                .onButtonPressAsync(Buttons.B, () -> {  // 检测第二个键是否被按下
+        gamepad.onPress(Buttons.DPAD_UP, () -> telemetry.addLine("DPAD_UP pressed"))
+                .onPressAsync(Buttons.B, () -> {  // 检测第二个键是否被按下
                     while (true) {
                         if (Buttons.Y.wasJustPressed(gamepad))
                             telemetry.addLine("B and Y was pressed");
                     }
                 });
-        gamepad.onButtonChange(Buttons.LEFT_BUMPER, (pressed) -> {
-            if (pressed) telemetry.addLine("Button.LEFT_BUMPER - Pressed");
-            else telemetry.addLine("Button.LEFT_BUMPER - Released");
-        });
     }
 }
