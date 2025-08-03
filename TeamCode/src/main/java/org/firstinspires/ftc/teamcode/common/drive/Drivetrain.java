@@ -21,8 +21,6 @@ public enum Drivetrain {
     INSTANCE;
     private final Robot robot = Robot.INSTANCE;
 
-    public final double
-
     public DcMotorEx driveLeftFront = null;
     public DcMotorEx driveLeftBack = null;
     public DcMotorEx driveRightFront = null;
@@ -39,14 +37,10 @@ public enum Drivetrain {
         //            |    |
         // lrmotor 3 /______\ 2 rrmotor
 
-        // Control Hub Motor 0
-        driveLeftFront = robot.hardwareMap.get(DcMotorEx.class, "lfmotor");
-        // Control Hub Motor 1
-        driveRightFront = robot.hardwareMap.get(DcMotorEx.class, "rfmotor");
-        // Control Hub Motor 2
-        driveRightBack = robot.hardwareMap.get(DcMotorEx.class, "rrmotor");
-        // Control Hub Motor 3
-        driveLeftBack = robot.hardwareMap.get(DcMotorEx.class, "lrmotor");
+        driveLeftFront = robot.hardwareMap.get(DcMotorEx.class, "lfmotor");  // Control Hub Motor 0
+        driveRightFront = robot.hardwareMap.get(DcMotorEx.class, "rfmotor"); // Control Hub Motor 1
+        driveRightBack = robot.hardwareMap.get(DcMotorEx.class, "rrmotor");  // Control Hub Motor 2
+        driveLeftBack = robot.hardwareMap.get(DcMotorEx.class, "lrmotor");   // Control Hub Motor 3
 
         driveLeftFront.setDirection(DcMotor.Direction.FORWARD);
         driveLeftBack.setDirection(DcMotor.Direction.FORWARD);
