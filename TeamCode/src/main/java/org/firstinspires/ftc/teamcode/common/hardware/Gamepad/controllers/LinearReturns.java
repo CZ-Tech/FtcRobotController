@@ -2,6 +2,8 @@ package org.firstinspires.ftc.teamcode.common.hardware.Gamepad.controllers;
 
 import com.qualcomm.robotcore.hardware.Gamepad;
 
+import org.firstinspires.ftc.teamcode.common.hardware.Gamepad.ListEventGamepad;
+
 public enum LinearReturns {
     // Trigger axes 线性扳机
     LEFT_TRIGGER {
