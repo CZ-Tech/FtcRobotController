@@ -18,4 +18,5 @@ public enum LinearReturns {
     };
 
     public abstract float getFloatValue(Gamepad gamepad);
+
 }
