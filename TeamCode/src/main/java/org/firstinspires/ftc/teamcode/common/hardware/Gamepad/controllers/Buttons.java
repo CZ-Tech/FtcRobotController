@@ -140,4 +140,14 @@ public enum Buttons {
     public abstract boolean wasJustReleased(Gamepad gamepad);
 
 
+    public Buttons whenDown(ListEventGamepad eventGamepad, Consumer<Integer> action) {
+        eventGamepad.whenDown(this, action);
+        return this;
+    }
+
+    public Buttons whenDownAsync(ListEventGamepad eventGamepad, Consumer<Integer> action) {
+        eventGamepad.whenDownAsync(this, action);
+        return this;
+    }
+
 }
