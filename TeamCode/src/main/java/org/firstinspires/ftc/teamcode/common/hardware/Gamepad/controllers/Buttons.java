@@ -139,51 +139,5 @@ public enum Buttons {
     public abstract boolean wasJustPressed(Gamepad gamepad);
     public abstract boolean wasJustReleased(Gamepad gamepad);
 
-    public Buttons onPress(ListEventGamepad eventGamepad, Runnable action) {
-        eventGamepad.onPress(this, action);
-        return this; // 返回当前按键对象以支持链式调用
-    }
-
-    public Buttons onPress(ListEventGamepad eventGamepad, Consumer<Integer> action) {
-        eventGamepad.onPress(this, action);
-        return this;
-    }
-
-    public Buttons onPressAsync(ListEventGamepad eventGamepad, Runnable action) {
-        eventGamepad.onPressAsync(this, action);
-        return this;
-    }
-
-    public Buttons onPressAsync(ListEventGamepad eventGamepad, Consumer<Integer> action) {
-        eventGamepad.onPressAsync(this, action);
-        return this;
-    }
-
-    public Buttons onPressAsync(ListEventGamepad eventGamepad, Runnable action, Executor executor) {
-        eventGamepad.onPressAsync(this, action, executor);
-        return this;
-    }
-
-    public Buttons onPressAsync(ListEventGamepad eventGamepad,
-                                Consumer<Integer> action,
-                                Executor executor) {
-        eventGamepad.onPressAsync(this, action, executor);
-        return this;
-    }
-
-    public Buttons onRelease(ListEventGamepad eventGamepad, Runnable action) {
-        eventGamepad.onRelease(this, action);
-        return this;
-    }
-
-    public Buttons onReleaseAsync(ListEventGamepad eventGamepad, Runnable action) {
-        eventGamepad.onReleaseAsync(this, action);
-        return this;
-    }
-
-    public Buttons onReleaseAsync(ListEventGamepad eventGamepad, Runnable action, Executor executor) {
-        eventGamepad.onReleaseAsync(this, action, executor);
-        return this;
-    }
 
 }

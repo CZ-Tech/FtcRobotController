@@ -13,13 +13,13 @@ public class Auto extends LinearOpMode {
 
     @Override
     public void runOpMode() {
-        //Initialization
+        //Initialization初始化
         robot.init(this);
 
-        //Wait for the 'Start' button pressed
+        //Wait for the 'Start' button pressed 等待开始键被按下
         waitForStart();
 
-        //Main methods
+        //Main methods 主方法
         robot.drivetrain.resetYaw();
         robot.drivetrain
                 .driveStraight(24.0, 0.0, 1.0)

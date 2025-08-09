@@ -61,6 +61,7 @@ public enum Robot {
 
     /**
      * 以多线程运行函数
+     * ps: sync不是同步的意思吗，async是异步
      *
      * @param commands 需要同时运行的命令（函数或者方法）
      * @return Robot

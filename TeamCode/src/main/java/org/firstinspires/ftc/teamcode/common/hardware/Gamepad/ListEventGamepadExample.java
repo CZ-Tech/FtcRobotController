@@ -9,8 +9,8 @@ public class ListEventGamepadExample extends LinearOpMode {
 
     @Override
     public void runOpMode() {
-        Buttons.A
-                .onPress(gamepad, () -> telemetry.addLine("Button.A - Pressed"))
-                .onRelease(gamepad, () -> telemetry.addLine("Button.A - Released"));
+        gamepad.listen(Buttons.A)
+                .onPress(() -> telemetry.addLine("Button.A - Pressed"))
+                .onRelease(() -> telemetry.addLine("Button.A - Released"));
     }
 }
