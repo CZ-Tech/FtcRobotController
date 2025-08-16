@@ -32,6 +32,7 @@ public class Globals {
     public static final double DRIVE_GEAR_REDUCTION = 1.0;     // No External Gearing.没有外部齿轮转动
     public static final double WHEEL_DIAMETER_INCHES = 4.00;   // 车轮直径（单位：英寸），用于计算车轮周长
     public static double HEADING_THRESHOLD = 1.0;    // 在移动到下一步时头部必须离目标有多近
+    public static double MIN_START_POWER = 0.05;  // 对于每个电机使机器人启动的最小最小功率
 
     // 定义移动常量. 定义public类型以在opmode中调用
     public static final double COUNTS_PER_INCH = (COUNTS_PER_MOTOR_REV * DRIVE_GEAR_REDUCTION) / (WHEEL_DIAMETER_INCHES * Math.PI);
@@ -56,6 +57,11 @@ public class Globals {
 //  +           =====             +
 //  +           =====             +
 //  +++++++++++++++++++++++++++++++
+
+    //定义里程计相对于中心的偏差
+    //148.027 -44.020
+    public static final double X_OFFSET = 0;
+    public static final double Y_OFFSET = -95.99872249;
 
 
     public static final RevHubOrientationOnRobot orientationOnRobot=new RevHubOrientationOnRobot(

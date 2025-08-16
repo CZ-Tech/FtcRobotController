@@ -8,13 +8,21 @@ import org.firstinspires.ftc.robotcore.external.Telemetry;
 import org.firstinspires.ftc.teamcode.common.command.Command;
 import org.firstinspires.ftc.teamcode.common.drive.Drivetrain;
 import org.firstinspires.ftc.teamcode.common.hardware.GamepadEx;
+import org.firstinspires.ftc.teamcode.common.hardware.GoBildaPinpointDriver;
 import org.firstinspires.ftc.teamcode.common.subsystem.Subsystem;
 import org.firstinspires.ftc.teamcode.common.util.Alliance;
 import org.firstinspires.ftc.teamcode.common.util.OpModeState;
 import org.firstinspires.ftc.teamcode.common.vision.Vision;
 
-public enum Robot {
-    INSTANCE;
+public final class Robot {
+    private static final Robot INSTANCE = new Robot();
+
+    private Robot() {
+    }
+
+    public static Robot getInstance() {
+        return INSTANCE;
+    }
     public HardwareMap hardwareMap;
     public Telemetry telemetry;
     public Vision vision;
@@ -27,6 +35,8 @@ public enum Robot {
     public IMU imu;
     public Alliance teamColor;
     public OpModeState opModeState;
+
+    public GoBildaPinpointDriver odo;
 
     /**
      * 初始化机器人
@@ -43,6 +53,13 @@ public enum Robot {
         this.gamepad1 = new GamepadEx(opMode.gamepad1); //一个控制器
         this.gamepad2 = new GamepadEx(opMode.gamepad2); //另一个控制器
         this.command = Command.INSTANCE;
+
+        //获取并初始化pinpoint
+        this.odo = hardwareMap.get(GoBildaPinpointDriver.class, "odo");
+        odo.setOffsets(Globals.X_OFFSET, Globals.Y_OFFSET);//148.027, -68.020
+        odo.setEncoderResolution(GoBildaPinpointDriver.GoBildaOdometryPods.goBILDA_4_BAR_POD);
+        odo.setEncoderDirections(GoBildaPinpointDriver.EncoderDirection.REVERSED, GoBildaPinpointDriver.EncoderDirection.REVERSED);
+        odo.resetPosAndIMU();
 
 
         //获取并初始化陀螺仪

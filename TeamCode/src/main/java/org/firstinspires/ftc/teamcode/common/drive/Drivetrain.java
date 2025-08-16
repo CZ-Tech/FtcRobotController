@@ -17,9 +17,10 @@ import org.firstinspires.ftc.robotcore.external.navigation.AngularVelocity;
 import org.firstinspires.ftc.robotcore.external.navigation.YawPitchRollAngles;
 import org.firstinspires.ftc.teamcode.common.Robot;
 
-public enum Drivetrain {
-    INSTANCE;
-    private final Robot robot = Robot.INSTANCE;
+public class Drivetrain {
+    // 单例模式用实例
+    public final static Drivetrain INSTANCE = new Drivetrain();
+    private final Robot robot = Robot.getInstance();
 
     public DcMotorEx driveLeftFront = null;
     public DcMotorEx driveLeftBack = null;
@@ -31,7 +32,8 @@ public enum Drivetrain {
     private double headingError = 0;
 
 
-    Drivetrain() {
+    private Drivetrain() {
+
         // lfmotor 0 \______/ 1 rfmotor
         //            |    |
         //            |    |
@@ -50,8 +52,6 @@ public enum Drivetrain {
         driveLeftBack.setDirection(DcMotor.Direction.FORWARD);
         driveRightFront.setDirection(DcMotor.Direction.REVERSE);
         driveRightBack.setDirection(DcMotor.Direction.REVERSE);
-
-
     }
 
     /**
