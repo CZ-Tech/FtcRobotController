@@ -8,6 +8,7 @@ import org.firstinspires.ftc.robotcore.external.Telemetry;
 import org.firstinspires.ftc.teamcode.common.command.Command;
 import org.firstinspires.ftc.teamcode.common.drive.Drivetrain;
 import org.firstinspires.ftc.teamcode.common.hardware.GamepadEx;
+import org.firstinspires.ftc.teamcode.common.hardware.GoBildaPinpointDataAsync;
 import org.firstinspires.ftc.teamcode.common.hardware.GoBildaPinpointDriver;
 import org.firstinspires.ftc.teamcode.common.subsystem.Subsystem;
 import org.firstinspires.ftc.teamcode.common.util.Alliance;
@@ -17,8 +18,7 @@ import org.firstinspires.ftc.teamcode.common.vision.Vision;
 public final class Robot {
     private static final Robot INSTANCE = new Robot();
 
-    private Robot() {
-    }
+    private Robot() {}
 
     public static Robot getInstance() {
         return INSTANCE;
@@ -36,7 +36,7 @@ public final class Robot {
     public Alliance teamColor;
     public OpModeState opModeState;
 
-    public GoBildaPinpointDriver odo;
+    public GoBildaPinpointDataAsync odo;
 
     /**
      * 初始化机器人
@@ -55,7 +55,7 @@ public final class Robot {
         this.command = Command.INSTANCE;
 
         //获取并初始化pinpoint
-        this.odo = hardwareMap.get(GoBildaPinpointDriver.class, "odo");
+        this.odo = new GoBildaPinpointDataAsync(hardwareMap.get(GoBildaPinpointDriver.class, "odo"));
         odo.setOffsets(Globals.X_OFFSET, Globals.Y_OFFSET);//148.027, -68.020
         odo.setEncoderResolution(GoBildaPinpointDriver.GoBildaOdometryPods.goBILDA_4_BAR_POD);
         odo.setEncoderDirections(GoBildaPinpointDriver.EncoderDirection.REVERSED, GoBildaPinpointDriver.EncoderDirection.REVERSED);

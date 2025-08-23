@@ -264,7 +264,7 @@ public class GoBildaPinpointDriver extends I2cDeviceSynchDevice<I2cDeviceSynchSi
      * 在每个控制循环中调用此方法来刷新所有运动数据。
      * <p>
      * 该方法通过一次I2C“批量读取”操作，从Pinpoint模块获取所有最新的数据（包括位置、速度、编码器值、设备状态等），
-     * 并更新到该类的内部变量中。这是获取实时数据的关键步骤。
+     * 并更新到该类的内部变量中。
      */
     public void update(){
         // 从BULK_READ寄存器开始，一次性读取40个字节

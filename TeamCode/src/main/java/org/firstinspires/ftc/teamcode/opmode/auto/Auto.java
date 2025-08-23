@@ -9,7 +9,7 @@ import org.firstinspires.ftc.teamcode.common.util.Alliance;
 
 
 public class Auto extends LinearOpMode {
-    Robot robot = Robot.INSTANCE;
+    Robot robot = Robot.getInstance();
 
     @Override
     public void runOpMode() {

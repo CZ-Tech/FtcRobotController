@@ -37,11 +37,24 @@ public class Globals {
     // 定义移动常量. 定义public类型以在opmode中调用
     public static final double COUNTS_PER_INCH = (COUNTS_PER_MOTOR_REV * DRIVE_GEAR_REDUCTION) / (WHEEL_DIAMETER_INCHES * Math.PI);
 
+    // -- ↓ATS系统常量↓ -- 系统不会校验输入是否合理！--
+    public static final double ATS_START_POWER = 0.8;  // ATS加速起始功率，增大能提升启动速度，
+                                                       // 但可能导致初始打滑
+    // ATS系统防滑灵敏度，预期轮转速和实际之差大于该值时判定为打滑，放大后电机调度会更激进，但也更容易打滑
+    public static final double ATS_LOCK_THRESHOLD = 0.1;  // 单位RPS
+    // ATS系统打滑时自动功率增减系数，正数即可，该值乘实际轮转速与理想轮转速之差即得功率增减值
+    // 这个值的理想范围理论上在一定范围内随防滑灵敏度增大而减小，建议不要太大，否则...估计也出不了啥大逝()
+    public static final double ANTISLIP_POWER_CHANGE_FACTOR = 0.25;
+    // ATS系统未打滑时步进加减功率步长(0~1, 单位长度意义与功率数字相同)（预估效果同上（））
+    public static final double ATS_POWER_CHANGE_STEP = 0.1;
+    // -- ↑ATS系统常量↑ --
+
     // 移动P增益值  更大的数值使机器人更加灵敏, 但会更不稳定
     public static final double P_DRIVE_GAIN = 0.03;     // 前进/后退方向的增益值
     public static final double P_STRAFE_GAIN = 0.025;   // 平移速度增益值
     public static final double P_TURN_GAIN = 0.02;     // 旋转速度增益值
-    public static final double LATERAL_DISTANCE = 10.63;  // 轴距  //TODO:调试此值，让机器走准
+    public static final double LATERAL_DISTANCE = 10.63;  // 左右轴距TODO(单位似乎是英寸)调试此值让机器走准
+    public static final double WHEELBASE = 10.63;  // 前后轮距，单位英寸(虽然实际调用时使转换成毫米用的)  //TODO:数据是我胡编的，得调（）
     public static final double FORWARD_OFFSET = 5.12;  // 机器人的旋转中心到传感器(TODO?未确认)
                                                        // 在前进/后退轴上的距离
                                                        // TODO:调试此值，让机器走准
@@ -64,7 +77,7 @@ public class Globals {
     public static final double Y_OFFSET = -95.99872249;
 
 
-    public static final RevHubOrientationOnRobot orientationOnRobot=new RevHubOrientationOnRobot(
+    public static final RevHubOrientationOnRobot orientationOnRobot = new RevHubOrientationOnRobot(
             RevHubOrientationOnRobot.LogoFacingDirection.UP,
             RevHubOrientationOnRobot.UsbFacingDirection.FORWARD
     );

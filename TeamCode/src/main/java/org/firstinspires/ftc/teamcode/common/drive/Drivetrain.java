@@ -22,10 +22,10 @@ public class Drivetrain {
     public final static Drivetrain INSTANCE = new Drivetrain();
     private final Robot robot = Robot.getInstance();
 
-    public DcMotorEx driveLeftFront = null;
-    public DcMotorEx driveLeftBack = null;
-    public DcMotorEx driveRightFront = null;
-    public DcMotorEx driveRightBack = null;
+    public DcMotorEx driveLeftFront;
+    public DcMotorEx driveLeftBack;
+    public DcMotorEx driveRightFront;
+    public DcMotorEx driveRightBack;
 
     private double targetHeading = 0;
     private double turnSpeed = 0;
