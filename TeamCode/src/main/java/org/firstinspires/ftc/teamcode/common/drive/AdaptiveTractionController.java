@@ -3,9 +3,21 @@ package org.firstinspires.ftc.teamcode.common.drive;
 import org.firstinspires.ftc.teamcode.common.Globals;
 import org.firstinspires.ftc.teamcode.common.hardware.GoBildaPinpointDataAsync;
 
+import java.util.Arrays;
+
+/**
+ * 一个运动控制器，它使用地面摩擦力的自适应模型来规划点运动的最快加速和减速曲线。
+ * 它与防抱死牵引系统（ATS）协作，以计算加速度和防止车轮打滑。
+ *
+ * 核心功能:
+ * 1.  自适应学习 (Adaptive Learning): 根据ATS的反馈动态估算最大可实现加速度，以适应不同的场地表面。
+ * 2.  运动规划 (Motion Profiling): 计算到达目标的速度曲线，包括加速、巡航和刹车阶段，以确保精确停止或通过。
+ * 4.  两段式控制 (Two-Stage Control): 在远距离时使用平移+旋转的复合运动，在需要停止时切换到纯旋转以实现高精度的最终对准。
+ * 5.  牵引力控制 (Traction Control): 将最终的动力施加任务交给ATS，以保证在所有条件下获得最大抓地力并防止打滑。
+ */
 public class AdaptiveTractionController {
-    private GoBildaPinpointDataAsync odo;
-    private AntiLockTractionSystem ATS;
+    private final GoBildaPinpointDataAsync odo;
+    private final AntiLockTractionSystem ATS;
 
     private double[] targetPos = new double[3];
     private double[] speedOnTargetPos = new double[3];
@@ -16,10 +28,12 @@ public class AdaptiveTractionController {
     public static final double MAX_TURN_POWER = 0.5;
     public static final double HEADING_P_GAIN_FAR = 0.5; // 偏离目标较远时航向的比例增益（每弧度误差的弧度/秒）
     public static final double HEADING_P_GAIN_CLOSE = 1.0; // 接近目标时航向的比例增益（以弧度每弧度误差的单位表示，单位为弧度/秒）
-    // STOP_THRESHOLD_MM 现在定义了从复合运动切换到纯旋转的距离
+    // 视为抵达的距离阈值
     public static final double STOP_THRESHOLD_MM = 20.0;
+    // 强制提前刹车的距离(mm)，防止实际摩擦力较小导致过冲
+    public static final double BRAKE_LEAD_MM = 50.0;
 
-    // --- 新增：自适应学习与运动规划常量 ---
+    // --- 自适应学习与运动规划常量 ---
     // 机器人的最大巡航速度 (mm/s)，这是一个安全上限
     public static double MAX_CRUISE_SPEED_MM_S = 1500.0;
     // 对最大加速度的初始猜测值 (mm/s^2)，一个保守的启动值
@@ -30,7 +44,7 @@ public class AdaptiveTractionController {
 
     public static double MAX_YAW_SPEED_WHEN_LEARNING = 5;  // 在触发学习加速度时允许的最大转向角速度 (rad/s)
 
-    // --- 新增：状态变量 ---
+    // --- 状态变量 ---
     // 动态学习到的、机器人在此地面上能达到的最大加速度
     private double learnedMaxAcceleration = INITIAL_MAX_ACCEL_MM_S2;
     // 用于计算加速度的时间和速度变量
@@ -42,14 +56,6 @@ public class AdaptiveTractionController {
         RUN_ANTILOCK_ONLY
     }
 
-    public enum state {
-        MIXED,
-        BREAKING,
-        ACCELERATING,  // 直线加速
-        TURNING,
-        CONSTANT,  // 匀速
-        STOPPED
-    }
 
     public AdaptiveTractionController(GoBildaPinpointDataAsync odo, AntiLockTractionSystem ats) {
         this.odo = odo;
@@ -58,12 +64,14 @@ public class AdaptiveTractionController {
     }
 
     /**
-     * 重置学习到的加速度值，在每次自动程序开始时调用
+     * 将学习到的加速度值重置为初始状态。
+     * 应在每次自动程序开始时调用。
      */
     public void resetLearning() {
         this.learnedMaxAcceleration = INITIAL_MAX_ACCEL_MM_S2;
         this.lastUpdateTimeNanos = 0;
         this.lastVelocityMagnitude = 0;
+        Arrays.fill(speedOnTargetPos, 0.0);
     }
 
     /**
@@ -81,6 +89,7 @@ public class AdaptiveTractionController {
 
         double currentVelX = odo.getVelX();
         double currentVelY = odo.getVelY();
+        // 勾股计算运动方向上的速度
         double currentVelocityMagnitude = Math.hypot(currentVelX, currentVelY);
 
         // 计算当前加速度的瞬时值
@@ -119,69 +128,85 @@ public class AdaptiveTractionController {
      * 这是为异步更新架构准备的
      */
     public void update() {
+        // 先学习加速度
         updateFrictionLearning();
+        // 再执行核心逻辑
         switch (mode) {
-            case RUN_TO_POSITION:
-                double currentX = odo.getPosX();
-                double currentY = odo.getPosY();
-                double currentHeading = odo.getHeading(); // 单位:弧度(radians)
-
-                double dx = targetPos[0] - currentX;
-                double dy = targetPos[1] - currentY;
-                double distanceToTarget = Math.hypot(dx, dy);
-
-                // 获取当前朝向与目标的差值
-                double headingError = normalizeAngle(targetPos[2] - currentHeading);
-
-                double axialPower = 0.0;
-                double lateralPower = 0.0;
-                double yawPower = 0.0;
-                if (distanceToTarget > STOP_THRESHOLD_MM) {
-                    // 阶段1：复合运动（平移+旋转）
-                    // 计算最短刹车距离(朴实无华的 v^2 = 2ax)
-                    double brakingDistance = (lastVelocityMagnitude * lastVelocityMagnitude) / (2 * learnedMaxAcceleration);
-                    double targetSpeed;
-                    if (distanceToTarget <= brakingDistance) {
-                        // **进入刹车阶段**
-                        // 我们需要减速以在终点停下。目标速度是基于剩余距离的函数。
-                        // v_target = sqrt(2 * a * d)
-                        targetSpeed = Math.sqrt(2 * learnedMaxAcceleration * distanceToTarget);
-                    } else {
-                        // **加速/巡航阶段**
-                        // 我们可以安全地加速到最大速度
-                        targetSpeed = MAX_CRUISE_SPEED_MM_S;
-                    }
-
-                    // 将目标速度转换为0-1范围的功率值
-                    double translationalPower = Math.min(targetSpeed / MAX_CRUISE_SPEED_MM_S, 1.0);
-
-                    // 计算移动方向
-                    double angleToTarget = Math.atan2(dy, dx);
-                    double moveAngle = normalizeAngle(angleToTarget - currentHeading);
-
-                    axialPower = translationalPower * Math.cos(moveAngle);
-                    lateralPower = translationalPower * Math.sin(moveAngle);
-
-                    // 转向逻辑保持不变
-                    double rawFarYawPower = headingError * HEADING_P_GAIN_FAR;
-                    yawPower = Math.max(-MAX_TURN_POWER, Math.min(MAX_TURN_POWER, rawFarYawPower));
-                } else {
-                    // 阶段2：近距离，仅纯旋转对准
-                    axialPower = 0.0;
-                    lateralPower = 0.0;
-                    double rawCloseYawPower = headingError * HEADING_P_GAIN_CLOSE;
-                    yawPower = Math.max(-MAX_TURN_POWER, Math.min(MAX_TURN_POWER, rawCloseYawPower));
-                }
-
-                // 对防滑牵引系统施加精确的控制力度
-                ATS.setTargetPower(axialPower, lateralPower, yawPower);
-                break;
             case RUN_ANTILOCK_ONLY:
                 break;
+            case RUN_TO_POSITION:
+                runToPositionSignBased();
+                break;
+        }
+        // 更新 ATS 系统以启用需协作的功能并处理防抱死系统相关问题。
+        ATS.update();
+    }
+
+    public void runToPositionSignBased() {
+        // 获取机器人当前在世界坐标系下的实时位姿
+        double currentX = odo.getPosX();
+        double currentY = odo.getPosY();
+        double currentHeading = odo.getHeading();
+
+        // 计算从当前位置指向目标位置的世界坐标系下的误差向量 (dx_world, dy_world)
+        double dx_world = targetPos[0] - currentX;
+        double dy_world = targetPos[1] - currentY;
+        // 计算当前位置到目标位置的直线距离（标量，永远为正）
+        double distanceToTarget = Math.hypot(dx_world, dy_world);
+
+        // 初始化动力输出变量
+        double axialPower = 0.0, lateralPower = 0.0, yawPower = 0.0;
+
+        // 采用两段式控制策略, 在接近终点时，通过切换到纯旋转来保证停靠的最终精度和稳定性。
+        if (distanceToTarget > STOP_THRESHOLD_MM) {
+            // --- 复合运动阶段 (平移 + 旋转) ---
+
+            // 将世界坐标系下的误差向量，通过旋转矩阵投影到机器人自身的坐标系上。
+            // 这一步是整个算法最核心的转换，它让我们得到了带有方向信息的“相对误差”。
+            double cos_h = Math.cos(currentHeading);
+            double sin_h = Math.sin(currentHeading);
+            double dx_robot = dx_world * cos_h + dy_world * sin_h;
+            double dy_robot = -dx_world * sin_h + dy_world * cos_h;
+
+            // 定义“行进”的符号
+            // 目标在前方，基准为前进 (+1)；在后方，基准为后退 (-1)。
+            double directionSign = (dx_robot >= 0) ? 1.0 : -1.0;
+
+            // 计算刹车距离
+            double brakingDistance = (lastVelocityMagnitude * lastVelocityMagnitude) / Math.max(2 * learnedMaxAcceleration, 1e-6);
+            // 定义油门方向的符号
+            // 在刹车区外则+1；在刹车区内则-1。
+            double throttleSign = (distanceToTarget > brakingDistance + BRAKE_LEAD_MM) ? 1.0 : -1.0;
+
+            // 最终输出动力符号 = 方向策略 * 油门方向
+            double targetPowerSign = directionSign * throttleSign;
+
+            // 计算机器人应该施加推力的方向（在机器人坐标系下）。
+            // - 当前进时(directionSign=+1), moveAngle = atan2(dy_robot, dx_robot)，即目标方向。
+            // - 当后退时(directionSign=-1), moveAngle = atan2(-dy_robot, -dx_robot)，即目标的相反方向。
+            double moveAngle = Math.atan2(directionSign * dy_robot, directionSign * dx_robot);
+
+            // 8. 计算最终动力分量
+            axialPower = targetPowerSign * Math.cos(moveAngle);
+            lateralPower = targetPowerSign * Math.sin(moveAngle);
+
+            // 转向逻辑与平移逻辑解耦，它只负责在整个移动过程中，持续地将机器人朝向最终的目标姿态。
+            double headingError = normalizeAngle(targetPos[2] - currentHeading);
+            double rawFarYawPower = headingError * HEADING_P_GAIN_FAR;
+            yawPower = Math.max(-MAX_TURN_POWER, Math.min(MAX_TURN_POWER, rawFarYawPower));
+
+        } else {
+            // --- 阶段2: 近距离纯旋转阶段 ---
+            // 当机器人足够接近目标点时，停止所有平移动作。
+            axialPower = 0.0;
+            lateralPower = 0.0;
+            // 此时只执行纯旋转，以更高的P增益进行精确的姿态对准。
+            double headingError = normalizeAngle(targetPos[2] - currentHeading);
+            double rawCloseYawPower = headingError * HEADING_P_GAIN_CLOSE;
+            yawPower = Math.max(-MAX_TURN_POWER, Math.min(MAX_TURN_POWER, rawCloseYawPower));
         }
 
-        // 更新 ATS 系统以启用功能并处理防抱死系统相关问题。
-        ATS.update();
+        ATS.setTargetPower(axialPower, lateralPower, yawPower);
     }
 
     // 用于将角度归一化至 [-π, π] 范围内的辅助方法
