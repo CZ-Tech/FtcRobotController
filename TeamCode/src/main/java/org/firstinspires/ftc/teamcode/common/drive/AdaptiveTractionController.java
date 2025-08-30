@@ -25,6 +25,11 @@ public class AdaptiveTractionController {
     private Modes mode = Modes.RUN_ANTILOCK_ONLY;
 
     // Control constants - Adjust these values as needed
+
+    // 用于判断运动是否“足够直”的阈值 (0 到 1 之间)
+    // 1.0 表示只在完美直线上学习，0.0 表示在任何运动中都学习。
+    // 一个较高的值 (如 0.9) 能有效过滤掉曲线运动数据，同时允许近似直线运动的数据被采纳。
+    public static double STRAIGHTNESS_THRESHOLD = 0.9;
     public static final double MAX_TURN_POWER = 0.5;
     public static final double HEADING_P_GAIN_FAR = 0.5; // 偏离目标较远时航向的比例增益（每弧度误差的弧度/秒）
     public static final double HEADING_P_GAIN_CLOSE = 1.0; // 接近目标时航向的比例增益（以弧度每弧度误差的单位表示，单位为弧度/秒）
@@ -49,7 +54,8 @@ public class AdaptiveTractionController {
     private double learnedMaxAcceleration = INITIAL_MAX_ACCEL_MM_S2;
     // 用于计算加速度的时间和速度变量
     private long lastUpdateTimeNanos = 0;
-    private double lastVelocityMagnitude = 0;
+    private double lastVelX = 0;
+    private double lastVelY = 0;
 
     public static enum Modes {
         RUN_TO_POSITION,
@@ -70,42 +76,67 @@ public class AdaptiveTractionController {
     public void resetLearning() {
         this.learnedMaxAcceleration = INITIAL_MAX_ACCEL_MM_S2;
         this.lastUpdateTimeNanos = 0;
-        this.lastVelocityMagnitude = 0;
+        this.lastVelX = 0;
+        this.lastVelY = 0;
         Arrays.fill(speedOnTargetPos, 0.0);
     }
 
     /**
      * 自适应学习模块：根据ATS反馈更新最大加速度
+     * (最终版本 - 结合了精确的矢量加速度计算和智能的直线度过滤)
      */
     private void updateFrictionLearning() {
         if (lastUpdateTimeNanos == 0) {
             lastUpdateTimeNanos = System.nanoTime();
+            lastVelX = odo.getVelX();
+            lastVelY = odo.getVelY();
             return;
         }
 
         long currentTimeNanos = System.nanoTime();
-        double dt = (currentTimeNanos - lastUpdateTimeNanos) / 1e9; // 转换为秒
-        if (dt < 1e-6) return; // 避免除零
+        double dt = (currentTimeNanos - lastUpdateTimeNanos) / 1e9;
+        if (dt < 1e-6) return;
 
+        // --- 1. 计算精确的加速度矢量 ---
         double currentVelX = odo.getVelX();
         double currentVelY = odo.getVelY();
-        // 勾股计算运动方向上的速度
-        double currentVelocityMagnitude = Math.hypot(currentVelX, currentVelY);
 
-        // 计算当前加速度的瞬时值
-        double currentAcceleration = Math.abs(currentVelocityMagnitude - lastVelocityMagnitude) / dt;
+        double accelX = (currentVelX - lastVelX) / dt;
+        double accelY = (currentVelY - lastVelY) / dt;
 
-        // 如果ATS正在介入（意味着我们达到了摩擦力极限），就更新我们的模型
-        double yawRate = odo.getHeadingVelocity(); // 假设 odo 提供角速度
+        double currentAccelerationMagnitude = Math.hypot(accelX, accelY);
+
+        // --- 2. 检查学习前提条件 ---
+        // a) 牵引力是否达到极限 (由ATS判断)
+        // b) 机器人自身是否在快速旋转 (由yawRate判断)
+        double yawRate = odo.getHeadingVelocity();
         if (ATS.isUsingLimitingFriction() && Math.abs(yawRate) < MAX_YAW_SPEED_WHEN_LEARNING) {
-            // 使用指数移动平均 (EMA) 来平滑地更新学习到的值
-            learnedMaxAcceleration = (1 - ACCEL_LEARNING_RATE) * learnedMaxAcceleration
-                    + ACCEL_LEARNING_RATE * currentAcceleration;
+
+            // --- 3. 智能过滤：判断运动是否“足够直” ---
+            double currentVelocityMagnitude = Math.hypot(currentVelX, currentVelY);
+
+            // 为了避免除以零，仅在机器人有速度和加速度时才计算直线度
+            if (currentVelocityMagnitude > 1e-6 && currentAccelerationMagnitude > 1e-6) {
+
+                // 计算速度矢量v和加速度矢量a的点积
+                double dotProduct = currentVelX * accelX + currentVelY * accelY;
+
+                // 计算 |cos(θ)| = |(v · a) / (|v| * |a|)|
+                double straightnessFactor = Math.abs(dotProduct / (currentVelocityMagnitude * currentAccelerationMagnitude));
+
+                // 只有当运动足够直时，才进行学习
+                if (straightnessFactor > STRAIGHTNESS_THRESHOLD) {
+                    // 使用指数移动平均 (EMA) 来平滑地更新学习到的值
+                    learnedMaxAcceleration = (1 - ACCEL_LEARNING_RATE) * learnedMaxAcceleration
+                            + ACCEL_LEARNING_RATE * currentAccelerationMagnitude;
+                }
+            }
         }
 
-        // 为下一次迭代更新状态
+        // --- 4. 为下一次迭代更新状态 ---
         lastUpdateTimeNanos = currentTimeNanos;
-        lastVelocityMagnitude = currentVelocityMagnitude;
+        lastVelX = currentVelX;
+        lastVelY = currentVelY;
     }
 
     private AdaptiveTractionController(GoBildaPinpointDataAsync odo) {
@@ -161,8 +192,27 @@ public class AdaptiveTractionController {
         if (distanceToTarget > STOP_THRESHOLD_MM) {
             // --- 复合运动阶段 (平移 + 旋转) ---
 
+            // ==================== 刹车距离计算 ====================
+            // 获取当前世界坐标系下的速度
+            double currentVelX = odo.getVelX();
+            double currentVelY = odo.getVelY();
+
+            // 将速度矢量(velX, velY)投影到位置误差矢量(dx_world, dy_world)上。
+            // 得到的结果是机器人“朝向”目标点的速度分量，这才是决定何时刹车的关键。
+            // 公式: v_proj = (velocity · distance_vec) / |distance_vec|
+            double speedTowardsTarget = 0.0;
+            if (distanceToTarget > 1e-6) { // 防止除以零
+                speedTowardsTarget = (currentVelX * dx_world + currentVelY * dy_world) / distanceToTarget;
+            }
+
+            // 如果机器人正在远离目标（投影为负），我们不考虑刹车。只在接近时才计算。
+            speedTowardsTarget = Math.max(0, speedTowardsTarget);
+
+            // 使用修正后的、更准确的速度分量来计算刹车距离
+            double brakingDistance = (speedTowardsTarget * speedTowardsTarget) / Math.max(2 * learnedMaxAcceleration, 1e-6);
+            // ==========================================================
+
             // 将世界坐标系下的误差向量，通过旋转矩阵投影到机器人自身的坐标系上。
-            // 这一步是整个算法最核心的转换，它让我们得到了带有方向信息的“相对误差”。
             double cos_h = Math.cos(currentHeading);
             double sin_h = Math.sin(currentHeading);
             double dx_robot = dx_world * cos_h + dy_world * sin_h;
@@ -172,8 +222,8 @@ public class AdaptiveTractionController {
             // 目标在前方，基准为前进 (+1)；在后方，基准为后退 (-1)。
             double directionSign = (dx_robot >= 0) ? 1.0 : -1.0;
 
-            // 计算刹车距离
-            double brakingDistance = (lastVelocityMagnitude * lastVelocityMagnitude) / Math.max(2 * learnedMaxAcceleration, 1e-6);
+//            // （旧算法）计算刹车距离
+//            double brakingDistance = (lastVelocityMagnitude * lastVelocityMagnitude) / Math.max(2 * learnedMaxAcceleration, 1e-6);
             // 定义油门方向的符号
             // 在刹车区外则+1；在刹车区内则-1。
             double throttleSign = (distanceToTarget > brakingDistance + BRAKE_LEAD_MM) ? 1.0 : -1.0;
