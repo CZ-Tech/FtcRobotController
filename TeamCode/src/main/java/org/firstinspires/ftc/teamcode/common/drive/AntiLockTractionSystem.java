@@ -356,15 +356,19 @@ public class AntiLockTractionSystem {
         }
     }
 
-    public boolean isUsingLimitingFriction() {
+    public boolean isUsingLimitingFriction(int minTrueMotorCount) {
         short trueCount = 0;
         for (short i = 0; i < MOTORS_COUNT; i++) {
             if (targetPower[i] - currentPower[i] > 1e-9) trueCount++;
         }
-        return trueCount >= 3;
+        return trueCount >= minTrueMotorCount;
     }
 
     public boolean isSlipping() {
         return isSlippingCount > 0;
+    }
+
+    public void autoBreak() {
+        setTargetPower(-1, -1, 0);
     }
 }

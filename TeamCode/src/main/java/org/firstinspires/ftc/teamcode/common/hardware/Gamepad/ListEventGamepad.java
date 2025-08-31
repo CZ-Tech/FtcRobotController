@@ -2,16 +2,13 @@ package org.firstinspires.ftc.teamcode.common.hardware.Gamepad;
 
 import com.qualcomm.robotcore.hardware.Gamepad;
 
-import org.firstinspires.ftc.teamcode.R;
 import org.firstinspires.ftc.teamcode.common.hardware.Gamepad.controllers.Buttons;
+import org.firstinspires.ftc.teamcode.common.hardware.Gamepad.controllers.LinearReturns;
+import org.firstinspires.ftc.teamcode.common.hardware.Gamepad.controllers.PositionReturns;
 
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
-import java.util.concurrent.Executor;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 
 /**
@@ -44,19 +41,21 @@ import java.util.function.Consumer;
  *             });
  * }</pre>
  */
-public class ListEventGamepad extends Gamepad {
-
-    private Executor executor = null;
-
+public class ListEventGamepad {
     // 一个 Map，用于为每个被监视的按钮存储和复用其专用的事件处理器。
     private final Map<Buttons, ButtonEventHandler> buttonHandlers = new ConcurrentHashMap<>();
+    private final Gamepad gamepad;
+
+    public ListEventGamepad(Gamepad gamepad) {
+        this.gamepad = gamepad;
+    }
 
     /**
      * 主轮询入口方法。它会遍历所有注册的按钮处理器并触发它们各自的轮询逻辑。
      */
     public void update() {
         for (ButtonEventHandler handler : buttonHandlers.values()) {
-            handler.poll(this);
+            handler.poll(gamepad);
         }
     }
 
@@ -69,6 +68,14 @@ public class ListEventGamepad extends Gamepad {
     public ButtonEventHandler listen(Buttons button) {
         // computeIfAbsent 确保了每个按钮只有一个处理器实例。
         return buttonHandlers.computeIfAbsent(button, k -> new ButtonEventHandler(k));
+    }
+
+    public float getLeaner(LinearReturns trigger) {
+        return trigger.getFloatValue(gamepad);
+    }
+
+    public float[] getPos(PositionReturns stick) {
+        return stick.getPos(gamepad);
     }
 
     /**

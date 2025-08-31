@@ -2,10 +2,11 @@ package org.firstinspires.ftc.teamcode.common.hardware.Gamepad;
 
 import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
 
+import org.firstinspires.ftc.teamcode.common.Robot;
 import org.firstinspires.ftc.teamcode.common.hardware.Gamepad.controllers.Buttons;
 
 public class ListEventGamepadExample extends LinearOpMode {
-    public final ListEventGamepad gamepad = new ListEventGamepad();
+    public final ListEventGamepad gamepad = Robot.getInstance().gamepad1;
 
     @Override
     public void runOpMode() {

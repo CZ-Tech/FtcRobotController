@@ -1,57 +1,52 @@
 package org.firstinspires.ftc.teamcode.tasks;
 
-import static org.firstinspires.ftc.teamcode.common.Globals.TARGET_I2C_UPDATE_FREQUENCY;
+import static org.firstinspires.ftc.teamcode.common.Globals.TARGET_ATC_UPDATE_FREQUENCY;
 
 import org.firstinspires.ftc.teamcode.common.Robot;
-import org.firstinspires.ftc.teamcode.common.hardware.GoBildaPinpointDataAsync;
-import org.firstinspires.ftc.teamcode.common.hardware.GoBildaPinpointDriver;
+import org.firstinspires.ftc.teamcode.common.drive.AdaptiveTractionController;
 
-import java.util.concurrent.CopyOnWriteArrayList;
-import java.util.concurrent.Executors;
-import java.util.concurrent.TimeUnit;
-
-/*
- * 该类用于管理i2c数据读取
- */
-public class I2CUpdater {
-
+public class ATCUpdater {
     private boolean running = false;
-    private Thread updateThread;
 
     // 被读取的硬件
-    private final GoBildaPinpointDataAsync odo;
+    private final AdaptiveTractionController ATC;
     private final int targetUpdateSpeed;
 
-    public static I2CUpdater getInstance() {
-        return Instance.INSTANCE;
+    private Thread updateThread;
+
+    public static ATCUpdater getInstance() {
+        return ATCUpdater.Instance.INSTANCE;
     }
 
     private static class Instance {
-        public static final I2CUpdater INSTANCE = new I2CUpdater(TARGET_I2C_UPDATE_FREQUENCY, Robot.getInstance().odo);
+        public static final ATCUpdater INSTANCE = new ATCUpdater(TARGET_ATC_UPDATE_FREQUENCY, new AdaptiveTractionController(Robot.getInstance().odo));
     }
 
     /**
      * @param targetUpdateFrequency 循环速率，单位Hz
      */
-    private I2CUpdater(int targetUpdateFrequency, GoBildaPinpointDataAsync odo) {
-        this.odo = odo;
+    private ATCUpdater(int targetUpdateFrequency, AdaptiveTractionController ATC) {
+        this.ATC = ATC;
         this.targetUpdateSpeed = 1000 / targetUpdateFrequency;
     }
 
-    public void start() {
+    public synchronized void start() {
         running = true;
         updateThread = new Thread(() -> {
             long startTime = System.nanoTime() / 1_000_000L;
             while (running) {
-                odo.update();
+                ATC.update();
+                Robot.getInstance().telemetry.update();
+                Robot.getInstance().gamepad1.update();
+                Robot.getInstance().gamepad2.update();
                 long sleepTime = targetUpdateSpeed - (System.nanoTime() / 1_000_000L - startTime);
                 try {
                     if (sleepTime > 0) {
                         Thread.sleep(sleepTime);
                     } else {
                         Robot.getInstance().telemetry
-                                .addLine("last I2C took too much time!" +
-                                "it took {" + (System.nanoTime() / 1_000_000L - startTime) + "ms}");
+                                .addLine("last ATC took too much time!" +
+                                        "it took {" + (System.nanoTime() / 1_000_000L - startTime) + "ms}");
                     }
                 } catch (InterruptedException e) {
                     // 线程被中断，退出循环
@@ -61,7 +56,7 @@ public class I2CUpdater {
                 startTime = System.nanoTime() / 1_000_000L;
             }
         });
-        updateThread.setName("I2C-Updater");
+        updateThread.setName("ATC-Updater");
 //        updateThread.setDaemon(true); // 设置为守护线程，随主线程结束而结束
         updateThread.start();
     }
@@ -82,6 +77,4 @@ public class I2CUpdater {
     public boolean isRunning() {
         return running;
     }
-
-
 }

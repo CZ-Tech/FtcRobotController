@@ -1,6 +1,7 @@
 package org.firstinspires.ftc.teamcode.common.drive;
 
 import org.firstinspires.ftc.teamcode.common.Globals;
+import org.firstinspires.ftc.teamcode.common.Robot;
 import org.firstinspires.ftc.teamcode.common.hardware.GoBildaPinpointDataAsync;
 
 import java.util.Arrays;
@@ -48,7 +49,19 @@ public class AdaptiveTractionController {
     // 较小的值意味着学习更平滑但更慢
     public static double ACCEL_LEARNING_RATE = 0.05;
 
+    private static final int MIN_MOTORS_LIMITED_FOR_LEARNING = 3;  // 认为达到最大加速度时ATS介入的最小电机数
+
     public static double MAX_YAW_SPEED_WHEN_LEARNING = 5;  // 在触发学习加速度时允许的最大转向角速度 (rad/s)
+
+    // --- 主动刹车常量 ---
+    // 视为已停止的速度阈值 (mm/s)
+    public static final double BRAKE_STOP_VELOCITY_THRESHOLD_MM_S = 20.0;
+    // 视为已停止的角速度阈值 (rad/s)
+    public static final double BRAKE_STOP_YAW_RATE_THRESHOLD_RAD_S = 0.05;
+    // 用于抑制旋转的P增益
+    public static final double BRAKE_YAW_P_GAIN = 0.8;
+
+    private Runnable reachCallback;
 
     // --- 状态变量 ---
     // 动态学习到的、机器人在此地面上能达到的最大加速度
@@ -58,9 +71,14 @@ public class AdaptiveTractionController {
     private double lastVelX = 0;
     private double lastVelY = 0;
 
+    public double getLearnedMaxAcceleration() {
+        return learnedMaxAcceleration;
+    }
+
     public static enum Modes {
         RUN_TO_POSITION,
-        RUN_ANTILOCK_ONLY
+        RUN_ANTILOCK_ONLY,
+        AUTO_BRAKE
     }
 
 
@@ -89,6 +107,7 @@ public class AdaptiveTractionController {
     private void updateFrictionLearning() {
         if (lastUpdateTimeNanos == 0) {
             lastUpdateTimeNanos = System.nanoTime();
+            // TODO 这里的X、Y顺序可能有误
             lastVelX = odo.getVelX();
             lastVelY = odo.getVelY();
             return;
@@ -99,6 +118,7 @@ public class AdaptiveTractionController {
         if (dt < 1e-6) return;
 
         // --- 1. 计算精确的加速度矢量 ---
+        // TODO 这里的X、Y顺序可能有误
         double currentVelX = odo.getVelX();
         double currentVelY = odo.getVelY();
 
@@ -111,7 +131,7 @@ public class AdaptiveTractionController {
         // a) 牵引力是否达到极限 (由ATS判断)
         // b) 机器人自身是否在快速旋转 (由yawRate判断)
         double yawRate = odo.getHeadingVelocity();
-        if (ATS.isUsingLimitingFriction() && Math.abs(yawRate) < MAX_YAW_SPEED_WHEN_LEARNING) {
+        if (ATS.isUsingLimitingFriction(MIN_MOTORS_LIMITED_FOR_LEARNING) && Math.abs(yawRate) < MAX_YAW_SPEED_WHEN_LEARNING) {
 
             // --- 3. 智能过滤：判断运动是否“足够直” ---
             double currentVelocityMagnitude = Math.hypot(currentVelX, currentVelY);
@@ -140,7 +160,7 @@ public class AdaptiveTractionController {
         lastVelY = currentVelY;
     }
 
-    private AdaptiveTractionController(GoBildaPinpointDataAsync odo) {
+    public AdaptiveTractionController(GoBildaPinpointDataAsync odo) {
         this.odo = odo;
         AntiLockTractionSystem.ATSConfig config = AntiLockTractionSystem.ATSConfig.getBuilder()
                 .setAntislipPowerChangeFactor(Globals.ANTISLIP_POWER_CHANGE_FACTOR)
@@ -164,17 +184,29 @@ public class AdaptiveTractionController {
         updateFrictionLearning();
         // 再执行核心逻辑
         switch (mode) {
+            case AUTO_BRAKE:
+                runAutoBrake();
+                break;
             case RUN_ANTILOCK_ONLY:
                 break;
             case RUN_TO_POSITION:
-                runToPositionSignBased();
+                double distanceToTarget = runToPosition();
+                // 先检测是否达到目标
+                if (distanceToTarget <= STOP_THRESHOLD_MM && reachCallback != null) {
+                    // 达到则执行回调
+                    reachCallback.run();
+                }
                 break;
         }
         // 更新 ATS 系统以启用需协作的功能并处理防抱死系统相关问题。
         ATS.update();
     }
 
-    public void runToPositionSignBased() {
+    /**
+     * 自动规划行驶到目标点
+     * @return 到目标的剩余距离
+     */
+    public double runToPosition() {
         // 获取机器人当前在世界坐标系下的实时位姿
         double currentX = odo.getPosX();
         double currentY = odo.getPosY();
@@ -195,6 +227,7 @@ public class AdaptiveTractionController {
 
             // ==================== 刹车距离计算 ====================
             // 获取当前世界坐标系下的速度
+            // TODO 这里的X、Y顺序可能有误
             double currentVelX = odo.getVelX();
             double currentVelY = odo.getVelY();
 
@@ -279,6 +312,7 @@ public class AdaptiveTractionController {
         }
 
         ATS.setTargetPower(axialPower, lateralPower, yawPower);
+        return distanceToTarget;
     }
 
     /**
@@ -302,23 +336,119 @@ public class AdaptiveTractionController {
         return angle;
     }
 
+    /**
+     * 执行主动刹车的核心逻辑。
+     * 该方法计算与当前运动相反的动力矢量，并将其交给ATS执行。
+     */
+    private void runAutoBrake() {
+        // 1. 获取机器人在世界坐标系下的当前速度
+        double currentVelX_world = odo.getVelX();
+        double currentVelY_world = odo.getVelY();
+        double currentYawRate = odo.getHeadingVelocity(); // 角速度
+
+        double translationalSpeed = Math.hypot(currentVelX_world, currentVelY_world);
+
+        // 2. 检查是否已经停止
+        if (translationalSpeed < BRAKE_STOP_VELOCITY_THRESHOLD_MM_S &&
+                Math.abs(currentYawRate) < BRAKE_STOP_YAW_RATE_THRESHOLD_RAD_S) {
+            // 已经完全停止，不再施加动力，并可以切换回默认模式
+            ATS.setTargetPower(0, 0, 0);
+            mode = Modes.RUN_ANTILOCK_ONLY; // 刹车完成，恢复到空闲状态
+            return;
+        }
+
+        // 3. 将世界速度矢量转换为机器人本地坐标系
+        double currentHeading = odo.getHeading();
+        double cos_h = Math.cos(currentHeading);
+        double sin_h = Math.sin(currentHeading);
+
+        // 这是机器人前进/后退方向上的速度分量
+        double vel_robot_axial = currentVelX_world * cos_h + currentVelY_world * sin_h;
+        // 这是机器人向左/向右方向上的速度分量
+        double vel_robot_lateral = -currentVelX_world * sin_h + currentVelY_world * cos_h;
+
+        // 4. 计算与运动方向完全相反的动力矢量
+        // 我们想要一个与 (vel_robot_axial, vel_robot_lateral) 方向相反的单位矢量
+        double axialPower = -vel_robot_axial;
+        double lateralPower = -vel_robot_lateral;
+
+        // 归一化平移动力矢量，使其模长为1，只保留方向信息
+        // 这样ATS就能以最大功率进行刹车
+        if (translationalSpeed > 1e-6) { // 防止除以零
+            axialPower /= translationalSpeed;
+            lateralPower /= translationalSpeed;
+        }
+
+        // 5. 计算抑制旋转的动力
+        // 使用一个简单的P控制器来减小角速度
+        double yawPower = -currentYawRate * BRAKE_YAW_P_GAIN;
+
+        // 6. 将最终的刹车动力指令发送给ATS
+        ATS.setTargetPower(axialPower, lateralPower, yawPower);
+    }
+
+    /**
+     * 启动主动刹车模式。
+     * 在此模式下，控制器将持续施加与机器人当前运动相反的动力，
+     * 直到机器人完全停止（平移和旋转速度均低于阈值）。
+     * 调用此方法后，您必须继续在循环中调用 update() 来执行刹车过程。
+     */
+    public void autoBrake() {
+        this.mode = Modes.AUTO_BRAKE;
+    }
+
     public void setTargetPos(double x, double y, double heading) {
         targetPos[0] = x;
         targetPos[1] = y;
         targetPos[2] = heading;
+        reachCallback = () -> Robot.getInstance().telemetry.addLine("Reached target position");
     }
 
-    public void setTargetPosition(double x, double y) {
+    public void setTargetPos(double x, double y, double heading, Runnable reachCallback) {
+        targetPos[0] = x;
+        targetPos[1] = y;
+        targetPos[2] = heading;
+        this.reachCallback = reachCallback;
+    }
+
+    public void setTargetPos(double x, double y) {
         targetPos[0] = x;
         targetPos[1] = y;
         targetPos[2] = odo.getHeading(); // Maintain current heading for this overload
+        reachCallback = () -> Robot.getInstance().telemetry.addLine("Reached target position");
     }
 
+    public void setTargetPos(double x, double y, Runnable reachCallback) {
+        targetPos[0] = x;
+        targetPos[1] = y;
+        targetPos[2] = odo.getHeading(); // Maintain current heading for this overload
+        this.reachCallback = reachCallback;
+    }
+
+    public void setReachCallback(Runnable reachCallback) {
+        this.reachCallback = reachCallback;
+    }
+
+    /**
+     * 用于设定路过目标时的速度
+     * TODO！！！注意：程序只保证达成目标方向上的速度分量！！！
+     * @param x x方向速度
+     * @param y y方向速度
+     * @param yaw 旋转速度（跟没有一样）
+     */
+    @Deprecated
     public void setSpeedOnTargetPos(double x, double y, double yaw) {
         speedOnTargetPos[0] = x;
         speedOnTargetPos[1] = y;
         speedOnTargetPos[2] = yaw;
     }
+
+    /**
+     * 用于设定路过目标时的速度
+     * TODO！！！注意：程序只尽力达成目标方向上的速度分量！！！
+     * @param x x方向速度
+     * @param y y方向速度
+     */
     public void setSpeedOnTargetPos(double x, double y) {
         speedOnTargetPos[0] = x;
         speedOnTargetPos[1] = y;

@@ -77,6 +77,14 @@ public class Globals {
     public static final double Y_OFFSET = -95.99872249;
 
 
+    // ===================三个核心循环线程配置==============================
+    public static final int TARGET_I2C_UPDATE_FREQUENCY = 150;  // 单位Hz
+    public static final int TARGET_ATC_UPDATE_FREQUENCY = 200;
+
+    // 你问我第三个在哪？TODO！
+    // =================================================================
+
+
     public static final RevHubOrientationOnRobot orientationOnRobot = new RevHubOrientationOnRobot(
             RevHubOrientationOnRobot.LogoFacingDirection.UP,
             RevHubOrientationOnRobot.UsbFacingDirection.FORWARD
