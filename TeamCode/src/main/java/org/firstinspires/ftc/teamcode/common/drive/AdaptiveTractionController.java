@@ -30,7 +30,8 @@ public class AdaptiveTractionController {
     // 1.0 表示只在完美直线上学习，0.0 表示在任何运动中都学习。
     // 一个较高的值 (如 0.9) 能有效过滤掉曲线运动数据，同时允许近似直线运动的数据被采纳。
     public static double STRAIGHTNESS_THRESHOLD = 0.9;
-    public static final double MAX_TURN_POWER = 0.5;
+    // 这是一个比值，填的越大，允许转向调度的功率越多。1表示最大调度三分之一的功率。但是无论调多大都不会在所有情况下完全给旋转分配功率
+    public static final double MAX_TURN_POWER = 1;
     public static final double HEADING_P_GAIN_FAR = 0.5; // 偏离目标较远时航向的比例增益（每弧度误差的弧度/秒）
     public static final double HEADING_P_GAIN_CLOSE = 1.0; // 接近目标时航向的比例增益（以弧度每弧度误差的单位表示，单位为弧度/秒）
     // 视为抵达的距离阈值
@@ -188,8 +189,8 @@ public class AdaptiveTractionController {
         // 初始化动力输出变量
         double axialPower = 0.0, lateralPower = 0.0, yawPower = 0.0;
 
-        // 采用两段式控制策略, 在接近终点时，通过切换到纯旋转来保证停靠的最终精度和稳定性。
-        if (distanceToTarget > STOP_THRESHOLD_MM) {
+        // 采用两段式控制策略, 在接近终点停止时，通过切换到纯旋转来保证停靠的最终精度和稳定性。
+        if (!isTargetSpeedEffectivelyZero() || distanceToTarget > STOP_THRESHOLD_MM) {
             // --- 复合运动阶段 (平移 + 旋转) ---
 
             // ==================== 刹车距离计算 ====================
@@ -206,10 +207,31 @@ public class AdaptiveTractionController {
             }
 
             // 如果机器人正在远离目标（投影为负），我们不考虑刹车。只在接近时才计算。
+            // 远离时应该全力加速以返回，而不是刹车，故就放个0避免后续平方出正的计算出错误刹车距离
             speedTowardsTarget = Math.max(0, speedTowardsTarget);
 
-            // 使用修正后的、更准确的速度分量来计算刹车距离
-            double brakingDistance = (speedTowardsTarget * speedTowardsTarget) / Math.max(2 * learnedMaxAcceleration, 1e-6);
+            // 这是旧的基于目标速度为0的刹车点算法 -> // 使用修正后的、更准确的速度分量来计算刹车距离
+            // double brakingDistance = (speedTowardsTarget * speedTowardsTarget) / Math.max(2 * learnedMaxAcceleration, 1e-6);
+
+            // 下面是新的
+            // 计算目标速度在接近方向上的投影分量，作为减速的终点速度
+            double targetSpeedProjected = 0.0;
+            if (distanceToTarget > 1e-6) {
+                // 使用点积计算
+                // 这里的投影速度可以是负数，代表希望在目标点时是背离目标方向运动的（例如过点反向）。
+                // targetSpeedProjected 表示目标速度在目标方向上的分量大小。如果值为正，表示到目标后继续向前；如果值为负，表示到目标后立刻倒车。
+                targetSpeedProjected = (speedOnTargetPos[0] * dx_world + speedOnTargetPos[1] * dy_world) / distanceToTarget;
+            }
+
+            // 使用通用的运动学公式 d = (v_initial² - v_final²) / (2a) 计算减速所需的距离
+            double brakingDistance = 0.0;
+            // 只有在当前速度的平方大于目标速度的平方时，才需要减速。
+            // 这个公式天然地处理了 targetSpeedProjected 为正、零的情况。若targetSpeedProjected为负，在实际情况下它应该会尽快停住
+            double speedDiffSq = speedTowardsTarget * speedTowardsTarget - targetSpeedProjected * targetSpeedProjected;
+            if (speedDiffSq > 0) {
+                brakingDistance = speedDiffSq / Math.max(2 * Math.abs(learnedMaxAcceleration), 1e-6);
+            }
+
             // ==========================================================
 
             // 将世界坐标系下的误差向量，通过旋转矩阵投影到机器人自身的坐标系上。
@@ -225,7 +247,7 @@ public class AdaptiveTractionController {
 //            // （旧算法）计算刹车距离
 //            double brakingDistance = (lastVelocityMagnitude * lastVelocityMagnitude) / Math.max(2 * learnedMaxAcceleration, 1e-6);
             // 定义油门方向的符号
-            // 在刹车区外则+1；在刹车区内则-1。
+            // 在刹车区外则+1；在刹车区内则-1。（distanceToTarget始终为正）
             double throttleSign = (distanceToTarget > brakingDistance + BRAKE_LEAD_MM) ? 1.0 : -1.0;
 
             // 最终输出动力符号 = 方向策略 * 油门方向
@@ -257,6 +279,16 @@ public class AdaptiveTractionController {
         }
 
         ATS.setTargetPower(axialPower, lateralPower, yawPower);
+    }
+
+    /**
+     * 辅助函数，用于检查目标速度矢量是否有效为零，以处理浮点数精度问题。
+     */
+    private boolean isTargetSpeedEffectivelyZero() {
+        final double epsilon = 1e-6; // 定义一个极小值作为阈值
+        return Math.abs(speedOnTargetPos[0]) < epsilon &&
+                Math.abs(speedOnTargetPos[1]) < epsilon &&
+                Math.abs(speedOnTargetPos[2]) < epsilon;
     }
 
     // 用于将角度归一化至 [-π, π] 范围内的辅助方法
