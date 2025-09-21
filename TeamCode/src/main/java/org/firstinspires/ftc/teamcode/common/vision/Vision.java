@@ -15,13 +15,19 @@ import org.firstinspires.ftc.vision.apriltag.AprilTagProcessor;
 
 import java.util.concurrent.TimeUnit;
 
-public enum Vision {
-    INSTANCE;
+public class Vision {
+
     public VisionPortal visionPortal;
     public AprilTagProcessor aprilTag;
-    private final Robot robot = Robot.INSTANCE;
-    private final Telemetry telemetry = robot.telemetry;
-    private final LinearOpMode opMode = robot.opMode;
+    private final Robot robot;
+    private final Telemetry telemetry ;
+    private final LinearOpMode opMode;
+
+    public Vision(Robot robot){
+        this.robot = robot;
+        this.telemetry = robot.telemetry;
+        this.opMode = robot.opMode;
+    }
 
     public void init(VisionProcessor... processors) {
         visionPortal = new VisionPortal.Builder()

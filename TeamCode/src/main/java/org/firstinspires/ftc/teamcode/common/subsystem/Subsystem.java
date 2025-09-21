@@ -1,13 +1,15 @@
 package org.firstinspires.ftc.teamcode.common.subsystem;
 
-public enum Subsystem {
-    INSTANCE;
+import org.firstinspires.ftc.teamcode.common.Robot;
+
+public class Subsystem {
+    private final Robot robot;
 
     public final Intaker intaker;
     public final Thrower thrower;
-
-    Subsystem() {
-        this.intaker = Intaker.INSTANCE;
-        this.thrower = Thrower.INSTANCE;
+    public Subsystem(Robot robot) {
+        this.robot = robot;
+        this.intaker = new Intaker(robot);
+        this.thrower = new Thrower(robot);
     }
 }

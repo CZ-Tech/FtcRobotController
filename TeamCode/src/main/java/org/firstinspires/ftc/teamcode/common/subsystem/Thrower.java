@@ -2,12 +2,10 @@ package org.firstinspires.ftc.teamcode.common.subsystem;
 
 import org.firstinspires.ftc.teamcode.common.Robot;
 
-public enum Thrower {
-    INSTANCE;
+public class Thrower {
+    private final Robot robot;
 
-    private final Robot robot = Robot.INSTANCE;
-
-    Thrower() {
-
+    public Thrower(Robot robot) {
+        this.robot = robot;
     }
 }

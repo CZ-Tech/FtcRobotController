@@ -2,13 +2,12 @@ package org.firstinspires.ftc.teamcode.opmode.teleop;
 
 import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
-import com.qualcomm.robotcore.hardware.Gamepad;
 
 import org.firstinspires.ftc.teamcode.common.util.Alliance;
 import org.firstinspires.ftc.teamcode.common.Robot;
 
 public class Duo extends LinearOpMode {
-    Robot robot = Robot.INSTANCE;
+    Robot robot = new Robot();
 
     @Override
     public void runOpMode() {
@@ -16,8 +15,10 @@ public class Duo extends LinearOpMode {
         telemetry.addLine("Robot ready!");
         waitForStart();
         while (opModeIsActive()) {
+            // update 必须每次循环最开始执行，并且整个循环内每个手柄只能执行一次。
+            robot.gamepad1.update();
+
             robot.gamepad1
-                    .update()
                     .keyPress("a", () -> telemetry.addLine("Button.A - Pressed"))
                     .keyPress("left_stick_button", () -> telemetry.addLine("Button.LEFT_STICK_BUTTON - Pressed"))
                     .keyPress("dpad_up", () -> telemetry.addLine("Button.DPAD_UP - Pressed"))
@@ -30,7 +31,7 @@ public class Duo extends LinearOpMode {
                     )
             ;
 
-            robot.drivetrain.driveRobotFieldCentric(
+            robot.odoDrivetrain.driveRobotFieldCentric(
                     gamepad1.left_stick_y,
                     gamepad1.left_stick_x,
                     gamepad1.right_stick_x
@@ -40,7 +41,7 @@ public class Duo extends LinearOpMode {
     }
 
     @TeleOp(name = "Duo🔴", group = "Duo")
-    public static class DuoR extends Duo {
+    public static class DuoRed extends Duo {
         @Override
         public void runOpMode() {
             robot.teamColor = Alliance.RED;
@@ -49,7 +50,7 @@ public class Duo extends LinearOpMode {
     }
 
     @TeleOp(name = "Duo🔵", group = "Duo")
-    public static class DuoB extends Duo {
+    public static class DuoBlue extends Duo {
         @Override
         public void runOpMode() {
             robot.teamColor = Alliance.BLUE;

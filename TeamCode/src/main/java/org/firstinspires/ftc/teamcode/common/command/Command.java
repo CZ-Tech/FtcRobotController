@@ -1,9 +1,12 @@
 package org.firstinspires.ftc.teamcode.common.command;
 
-public enum Command {
-    INSTANCE;
+import org.firstinspires.ftc.teamcode.common.Robot;
 
-    Command() {
+public class Command {
 
+    private final Robot robot;
+
+    public Command(Robot robot) {
+        this.robot = robot;
     }
 }
