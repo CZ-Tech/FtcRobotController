@@ -26,6 +26,19 @@ public class OdoDrivetrain {
         this.robot = robot;
         setRunMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
         this.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
+
+        // 确保下方与configure里设置的一致
+        driveLeftFront = robot.hardwareMap.get(DcMotorEx.class, Globals.LeftFrontMotor);
+        driveRightFront = robot.hardwareMap.get(DcMotorEx.class, Globals.RightFrontMotor);
+        driveRightBack = robot.hardwareMap.get(DcMotorEx.class, Globals.RightBackMotor);
+        driveLeftBack = robot.hardwareMap.get(DcMotorEx.class, Globals.LeftBackMotor);
+
+        // 确保控制4个电机正转向前。
+        driveLeftFront.setDirection(Globals.LeftFrontMotorDirection);
+        driveLeftBack.setDirection(Globals.LeftBackMotorDirection);
+        driveRightFront.setDirection(Globals.RightFrontMotoDirection);
+        driveRightBack.setDirection(Globals.RightBackMotorDirection);
+
     }
 
     public static double VOLTAGE = 12;
