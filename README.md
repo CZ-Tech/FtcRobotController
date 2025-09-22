@@ -1,5 +1,8 @@
 ## NOTICE
 
+This repository contains the *MODIFIED* FTC SDK by FTC#19656 . See: [中文版](https://cz-tech.gitbook.io/ftc-az) [English](https://cz-tech.gitbook.io/ftc-az/en)
+
+
 This repository contains the public FTC SDK for the DECODE (2025-2026) competition season.
 
 ## Welcome!
