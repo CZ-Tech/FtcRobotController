@@ -1,7 +1,7 @@
+## FTC Quickstart teamcode by FTC#19656
+[中文版文档](https://cz-tech.gitbook.io/ftc-az) [English docs](https://cz-tech.gitbook.io/ftc-az/en)
+
 ## NOTICE
-
-This repository contains the *MODIFIED* FTC SDK by FTC#19656 . See: [中文版](https://cz-tech.gitbook.io/ftc-az) [English](https://cz-tech.gitbook.io/ftc-az/en)
-
 
 This repository contains the public FTC SDK for the DECODE (2025-2026) competition season.
 
