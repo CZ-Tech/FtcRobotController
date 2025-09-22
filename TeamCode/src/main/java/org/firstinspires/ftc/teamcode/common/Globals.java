@@ -1,6 +1,7 @@
 package org.firstinspires.ftc.teamcode.common;
 
 import com.acmerobotics.dashboard.config.Config;
+import com.qualcomm.hardware.gobilda.GoBildaPinpointDriver;
 import com.qualcomm.hardware.rev.RevHubOrientationOnRobot;
 import com.qualcomm.robotcore.hardware.DcMotor;
 import com.qualcomm.robotcore.hardware.DcMotorSimple;
@@ -48,8 +49,8 @@ public class Globals {
     public static DcMotor.Direction RightBackMotorDirection = DcMotor.Direction.FORWARD;
 
     //  设置里程计吊舱相对于跟踪点的位置偏移
-    //  @param xOffset X吊舱偏移量（毫米），中心左侧为正，右侧为负
-    //  @param yOffset Y吊舱偏移量（毫米），中心前方为正，后方为负
+    //  @param xOffset 检测前后运动的吊舱偏移量（毫米），中心左侧为正，右侧为负
+    //  @param yOffset 检测左右运动的吊舱偏移量（毫米），中心前方为正，后方为负
     //  +++++++++++++++++++++++++++++++
     //  +                        |||  +
     //  +               xOffset  |||  +
@@ -61,7 +62,13 @@ public class Globals {
     //  +           =====             +
     //  +           =====             +
     //  +++++++++++++++++++++++++++++++
-
+    public static String odoName="odo";
     public static double odoXOffset=0;
     public static double odoYOffset=-95.99872249;
+    // TODO:确认自己使用的里程计类型
+    public static GoBildaPinpointDriver.GoBildaOdometryPods odoType = GoBildaPinpointDriver.GoBildaOdometryPods.goBILDA_SWINGARM_POD;
+    // 确认odo编码器方向，向前读数增加。
+    public static GoBildaPinpointDriver.EncoderDirection odoXDirection = GoBildaPinpointDriver.EncoderDirection.REVERSED;
+    // 确认odo编码器方向，向左读数增加。
+    public static GoBildaPinpointDriver.EncoderDirection odoYDirection = GoBildaPinpointDriver.EncoderDirection.REVERSED;
 }

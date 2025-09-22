@@ -8,6 +8,7 @@ import com.qualcomm.robotcore.util.Range;
 
 import org.firstinspires.ftc.robotcore.external.navigation.AngleUnit;
 import org.firstinspires.ftc.robotcore.external.navigation.AngularVelocity;
+import org.firstinspires.ftc.robotcore.external.navigation.UnnormalizedAngleUnit;
 import org.firstinspires.ftc.robotcore.external.navigation.YawPitchRollAngles;
 import org.firstinspires.ftc.teamcode.common.Globals;
 import org.firstinspires.ftc.teamcode.common.Robot;
@@ -75,13 +76,15 @@ public class OdoDrivetrain {
     }
 
     public double getHeading(AngleUnit angleUnit) {
-        YawPitchRollAngles orientation = robot.imu.getRobotYawPitchRollAngles();
-        AngularVelocity velocity = robot.imu.getRobotAngularVelocity(AngleUnit.DEGREES);
-        return orientation.getYaw(angleUnit) + angleOffset;
+        return robot.odo.getHeading(angleUnit) + angleOffset;
+    }
+
+    public double getHeading(UnnormalizedAngleUnit unnormalizedAngleUnit) {
+        return robot.odo.getHeading(unnormalizedAngleUnit) + angleOffset;
     }
 
     public void resetYaw() {
-        robot.imu.resetYaw();
+        robot.odo.recalibrateIMU();
     }
 
     public void driveRobotFieldCentric(double axial, double lateral, double yaw) {

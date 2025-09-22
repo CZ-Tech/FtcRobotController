@@ -31,7 +31,6 @@ public class Robot {
     public Command command;
     public GamepadEx gamepad1;
     public GamepadEx gamepad2;
-    public IMU imu;
     public Alliance teamColor;
     public OpModeState opModeState;
     public GoBildaPinpointDriver odo;
@@ -53,19 +52,13 @@ public class Robot {
         this.command = new Command(this); //命令系统
         this.pinpointTrajectory = new PinpointTrajectory(this);
         this.odoDrivetrain = new OdoDrivetrain(this);
-        this.odo = hardwareMap.get(GoBildaPinpointDriver.class, "odo");
 
+        this.odo = hardwareMap.get(GoBildaPinpointDriver.class, Globals.odoName);
         odo.setOffsets(Globals.odoXOffset, Globals.odoYOffset, DistanceUnit.MM);
-        odo.setEncoderResolution(GoBildaPinpointDriver.GoBildaOdometryPods.goBILDA_4_BAR_POD); // TODO:确认自己使用的里程计类型
-        odo.setEncoderDirections(GoBildaPinpointDriver.EncoderDirection.REVERSED, GoBildaPinpointDriver.EncoderDirection.REVERSED);
+        odo.setEncoderResolution(Globals.odoType);
+        odo.setEncoderDirections(Globals.odoXDirection,Globals.odoYDirection);
         odo.resetPosAndIMU();
 
-        // TODO:获取并初始化control hub 陀螺仪。注意修改朝向。也可以使用pinpoint的陀螺仪。
-        imu = hardwareMap.get(IMU.class, "imu"); //获取陀螺仪
-        imu.initialize(new IMU.Parameters(new RevHubOrientationOnRobot(
-                RevHubOrientationOnRobot.LogoFacingDirection.UP,
-                RevHubOrientationOnRobot.UsbFacingDirection.FORWARD
-        ))); //初始化陀螺仪
     }
 
     /**
