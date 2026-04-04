@@ -13,4 +13,14 @@ public enum Alliance {
     public int getColor() {
         return color;
     }
+
+    public int getBaseAprilTag(){
+        if (color == BLUE.getColor()) return 20;
+        return 24;
+    }
+
+    public double getBaseAngle(){
+        if (color == BLUE.getColor()) return 54;
+        return -54;
+    }
 }

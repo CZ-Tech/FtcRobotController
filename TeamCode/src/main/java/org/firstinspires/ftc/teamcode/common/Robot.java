@@ -1,40 +1,35 @@
 package org.firstinspires.ftc.teamcode.common;
 
-import com.acmerobotics.dashboard.FtcDashboard;
-import com.acmerobotics.dashboard.telemetry.MultipleTelemetry;
+
 import com.qualcomm.hardware.gobilda.GoBildaPinpointDriver;
-import com.qualcomm.hardware.rev.RevHubOrientationOnRobot;
+import com.qualcomm.hardware.limelightvision.Limelight3A;
 import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
-import com.qualcomm.robotcore.hardware.DcMotor;
-import com.qualcomm.robotcore.hardware.DcMotorEx;
 import com.qualcomm.robotcore.hardware.HardwareMap;
-import com.qualcomm.robotcore.hardware.IMU;
+import com.qualcomm.robotcore.util.ElapsedTime;
 
 import org.firstinspires.ftc.robotcore.external.Telemetry;
-import org.firstinspires.ftc.robotcore.external.navigation.DistanceUnit;
-import org.firstinspires.ftc.teamcode.common.command.Command;
-import org.firstinspires.ftc.teamcode.common.drive.OdoDrivetrain;
-import org.firstinspires.ftc.teamcode.common.drive.PinpointTrajectory;
-import org.firstinspires.ftc.teamcode.common.hardware.GamepadEx;
-import org.firstinspires.ftc.teamcode.common.subsystem.Subsystem;
+import org.firstinspires.ftc.teamcode.common.drivetrain.MixedOdo;
+import org.firstinspires.ftc.teamcode.common.drivetrain.OdoDrivetrain;
+import org.firstinspires.ftc.teamcode.common.hardwares.Gamepad.GamepadBind;
+import org.firstinspires.ftc.teamcode.common.hardwares.Gamepad.GamepadEx;
+import org.firstinspires.ftc.teamcode.common.hardwares.Gamepad.GamepadReflectBinder;
+import org.firstinspires.ftc.teamcode.common.hardwares.Gamepad.ListEventGamepad;
+import org.firstinspires.ftc.teamcode.common.hardwares.Gamepad.controllers.Buttons;
 import org.firstinspires.ftc.teamcode.common.util.Alliance;
-import org.firstinspires.ftc.teamcode.common.util.OpModeState;
-import org.firstinspires.ftc.teamcode.common.vision.Vision;
+import org.firstinspires.ftc.teamcode.common.util.MixedTelemetry;
+import org.firstinspires.ftc.teamcode.opmode.teleop.Duo;
 
 public class Robot {
     public HardwareMap hardwareMap;
-    public Telemetry telemetry;
-    public Vision vision;
+    public MixedTelemetry telemetry;
     public LinearOpMode opMode;
     public OdoDrivetrain odoDrivetrain;
-    public Subsystem subsystem;
-    public Command command;
     public GamepadEx gamepad1;
     public GamepadEx gamepad2;
     public Alliance teamColor;
-    public OpModeState opModeState;
-    public GoBildaPinpointDriver odo;
-    public PinpointTrajectory pinpointTrajectory;
+    public MixedOdo odo;
+//    public PinpointTrajectory pinpointTrajectory;
+
 
     /**
      * 初始化机器人
@@ -44,21 +39,19 @@ public class Robot {
     public void init(LinearOpMode opMode) {
         this.opMode = opMode;
         this.hardwareMap = opMode.hardwareMap; //硬件映射
-        this.telemetry = new MultipleTelemetry(opMode.telemetry, FtcDashboard.getInstance().getTelemetry());//DH上的遥测，使用了FTCDashboard
-        this.vision = new Vision(this); //视觉模块
-        this.subsystem = new Subsystem(this); //上层子系统
-        this.gamepad1 = new GamepadEx(opMode.gamepad1); //一个控制器
-        this.gamepad2 = new GamepadEx(opMode.gamepad2); //另一个控制器
-        this.command = new Command(this); //命令系统
-        this.pinpointTrajectory = new PinpointTrajectory(this);
+        this.telemetry = new MixedTelemetry(opMode.telemetry);//DH上的遥测
+        this.odo = new MixedOdo(telemetry,
+                hardwareMap.get(GoBildaPinpointDriver.class, Globals.odoName),
+                hardwareMap.get(Limelight3A.class, "limelight"));
+
+        this.gamepad1 = new GamepadEx(opMode.gamepad1, opMode::opModeIsActive); //一个控制器
+        this.gamepad2 = new GamepadEx(opMode.gamepad2, opMode::opModeIsActive); //另一个控制器
+
         this.odoDrivetrain = new OdoDrivetrain(this);
 
-        this.odo = hardwareMap.get(GoBildaPinpointDriver.class, Globals.odoName);
-        odo.setOffsets(Globals.odoXOffset, Globals.odoYOffset, DistanceUnit.MM);
-        odo.setEncoderResolution(Globals.odoType);
-        odo.setEncoderDirections(Globals.odoXDirection,Globals.odoYDirection);
-        odo.resetPosAndIMU();
+//        this.pinpointTrajectory = new PinpointTrajectory(this);
 
+        GamepadReflectBinder.bind(this);
     }
 
     /**
@@ -70,18 +63,6 @@ public class Robot {
         return hardwareMap.voltageSensor.iterator().next().getVoltage();
     }
 
-    /**
-     * 以多线程运行函数
-     *
-     * @param commands 需要同时运行的命令（函数或者方法）
-     * @return Robot
-     */
-    public Robot syncRun(Runnable... commands) {
-        for (Runnable command : commands) {
-            new Thread(command).start();
-        }
-        return this;
-    }
 
     /**
      * 停止机器人的动作，时间以毫秒为单位
@@ -92,5 +73,23 @@ public class Robot {
     public Robot sleep(long milliseconds) {
         opMode.sleep(milliseconds);
         return this;
+    }
+
+    /**
+     * 等待一段时间，会阻塞当前进程（何意味？
+     * @param millisecond
+     * @return 甚至还能链式调用？？？
+     */
+    public Robot waitFor(double millisecond){
+        ElapsedTime runtime = new ElapsedTime();
+        runtime.reset();
+        while (runtime.milliseconds() <= millisecond && opMode.opModeIsActive());
+        return this;
+    }
+
+    // 专属行为：只有在 MainTeleOp（正赛）里，B 键才是反转吐出
+    @GamepadBind(gamepad = 1, button = Buttons.B, activeIn = {Duo.class})
+    private void reverseIntake() {
+        // ...
     }
 }

@@ -1,4 +1,4 @@
-package org.firstinspires.ftc.teamcode.common.drive;
+package org.firstinspires.ftc.teamcode.common.drivetrain;
 
 
 import com.qualcomm.robotcore.hardware.DcMotor;
@@ -7,13 +7,10 @@ import com.qualcomm.robotcore.util.ElapsedTime;
 import com.qualcomm.robotcore.util.Range;
 
 import org.firstinspires.ftc.robotcore.external.navigation.AngleUnit;
-import org.firstinspires.ftc.robotcore.external.navigation.AngularVelocity;
-import org.firstinspires.ftc.robotcore.external.navigation.UnnormalizedAngleUnit;
-import org.firstinspires.ftc.robotcore.external.navigation.YawPitchRollAngles;
 import org.firstinspires.ftc.teamcode.common.Globals;
 import org.firstinspires.ftc.teamcode.common.Robot;
 
-//@Confg
+
 public class OdoDrivetrain {
     private final Robot robot;
 
@@ -21,12 +18,17 @@ public class OdoDrivetrain {
     public DcMotorEx driveLeftBack = null;
     public DcMotorEx driveRightFront = null;
     public DcMotorEx driveRightBack = null;
-    public double angleOffset = 0;
+    public static double angleOffset = 0;
+    public double tempAngle = 0;
+    public double targetAngle = 0;
+    public static double TURN_RANGE = 5;
+    public static double TURN_SPEED = 0.4;
+
+    private double HEADING_ERROR = 0;
 
     public OdoDrivetrain(Robot robot) {
         this.robot = robot;
-        setRunMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
-        this.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
+
 
         // 确保下方与configure里设置的一致
         driveLeftFront = robot.hardwareMap.get(DcMotorEx.class, Globals.LeftFrontMotor);
@@ -40,6 +42,27 @@ public class OdoDrivetrain {
         driveRightFront.setDirection(Globals.RightFrontMotoDirection);
         driveRightBack.setDirection(Globals.RightBackMotorDirection);
 
+        setRunMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
+        this.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.FLOAT);
+
+    }
+
+    private double reCulcGamepad(double v) {
+        if (v > 0.0) { //若手柄存在中位漂移或抖动就改0.01
+            v = 0.87 * v * v * v + 0.09;//0.09是23-24赛季底盘启动需要的功率
+        } else if (v < 0.0) { //若手柄存在中位漂移或抖动就改-0.01
+            v = 0.87 * v * v * v - 0.09; //三次方是摇杆曲线
+        } else {
+            // XBOX和罗技手柄死区较大无需设置中位附近
+            // 若手柄存在中位漂移或抖动就改成 v*=13
+            // 这里的13是上面的0.13/0.01=13
+            v = 0;
+        }
+        return v;
+    }
+
+    public void setShootAngle(double angle){
+        targetAngle = angle;
     }
 
     public static double VOLTAGE = 12;
@@ -76,20 +99,31 @@ public class OdoDrivetrain {
     }
 
     public double getHeading(AngleUnit angleUnit) {
-        return robot.odo.getHeading(angleUnit) + angleOffset;
+//        robot.odo.update();
+//        YawPitchRollAngles orientation = robot.imu.getRobotYawPitchRollAngles();
+//        AngularVelocity velocity = robot.imu.getRobotAngularVelocity(AngleUnit.DEGREES);
+//
+//        return orientation.getYaw(angleUnit);
+        return angleUnit.fromDegrees(robot.odo.getHeading(AngleUnit.DEGREES) + angleOffset);
     }
 
-    public double getHeading(UnnormalizedAngleUnit unnormalizedAngleUnit) {
-        return robot.odo.getHeading(unnormalizedAngleUnit) + angleOffset;
-    }
+//    public double getHeading(UnnormalizedAngleUnit unnormalizedAngleUnit) {
+////        robot.odo.update();
+//        return unnormalizedAngleUnit.fromDegrees(robot.odo.getHeading(unnormalizedAngleUnit) + angleOffset);
+//    }
 
     public void resetYaw() {
-        robot.odo.recalibrateIMU();
+        tempAngle = getHeading(AngleUnit.DEGREES);
+        angleOffset = AngleUnit.DEGREES.normalize(angleOffset - tempAngle);
+
+//        robot.gyroTracker.handleReset(UnnormalizedAngleUnit.DEGREES);  // FiXME 理论上这玩意没用了
+        while(robot.opMode.gamepad1.share || robot.opMode.gamepad2.options);
     }
+
 
     public void driveRobotFieldCentric(double axial, double lateral, double yaw) {
         double botHeading = getHeading(AngleUnit.RADIANS);
-
+        robot.telemetry.addData("heading", botHeading);
         // Rotate the movement direction counter to the bot's rotation
         double rotX = lateral * Math.cos(-botHeading) - axial * Math.sin(-botHeading);
         double rotY = lateral * Math.sin(-botHeading) + axial * Math.cos(-botHeading);
@@ -124,5 +158,39 @@ public class OdoDrivetrain {
         driveRightFront.setZeroPowerBehavior(behavior);
         driveLeftBack.setZeroPowerBehavior(behavior);
         driveRightBack.setZeroPowerBehavior(behavior);
+    }
+
+    public void turnTo(double heading, double turn_range, double speed){
+        setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
+        ElapsedTime runtime = new ElapsedTime();
+        runtime.reset();
+        robot.odo.update();
+        HEADING_ERROR = getHeading(AngleUnit.DEGREES) - heading;
+        while(robot.opMode.opModeIsActive() && runtime.seconds() <= 4 && Math.abs(HEADING_ERROR) > turn_range){
+            robot.odo.update();
+
+//            if (HEADING_ERROR <= 150) HEADING_ERROR = getHeading(AngleUnit.DEGREES) - heading;
+            HEADING_ERROR = getHeading(AngleUnit.DEGREES) - heading;
+
+//            robot.telemetry.addData("Unnormalized Heading", getHeading(UnnormalizedAngleUnit.DEGREES));
+            robot.telemetry.addData("Normalized Heading", getHeading(AngleUnit.DEGREES));
+            robot.telemetry.addData("Error", HEADING_ERROR);
+            robot.telemetry.addData("Time", runtime.seconds());
+            robot.telemetry.update();
+
+            driveRobotFieldCentric(
+                    reCulcGamepad(-robot.opMode.gamepad1.left_stick_y),
+                    reCulcGamepad(robot.opMode.gamepad1.left_stick_x),
+                    Range.clip(HEADING_ERROR * Globals.TURN_GAIN, -speed, speed));
+        }
+        stopMotor();
+    }
+
+    public void turnTo(double heading){
+        turnTo(heading, TURN_RANGE, TURN_SPEED);
+    }
+
+    public void turnTo(double heading, double turn_range){
+        turnTo(heading, turn_range, TURN_SPEED);
     }
 }
