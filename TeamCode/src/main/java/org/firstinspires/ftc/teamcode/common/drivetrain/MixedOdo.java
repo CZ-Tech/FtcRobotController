@@ -1,11 +1,13 @@
 package org.firstinspires.ftc.teamcode.common.drivetrain;
 
+import static org.firstinspires.ftc.teamcode.common.Globals.UseVisionLocate;
+
 import android.util.Log;
 
 import com.qualcomm.hardware.gobilda.GoBildaPinpointDriver;
 import com.qualcomm.hardware.limelightvision.LLResult;
-import com.qualcomm.hardware.limelightvision.Limelight3A;
 
+import org.firstinspires.ftc.robotcore.external.hardware.camera.WebcamName;
 import org.firstinspires.ftc.robotcore.external.navigation.AngleUnit;
 import org.firstinspires.ftc.robotcore.external.navigation.DistanceUnit;
 import org.firstinspires.ftc.robotcore.external.navigation.Pose2D;
@@ -14,15 +16,15 @@ import org.firstinspires.ftc.robotcore.external.navigation.UnnormalizedAngleUnit
 import org.firstinspires.ftc.teamcode.common.Globals;
 import org.firstinspires.ftc.teamcode.common.Robot;
 import org.firstinspires.ftc.teamcode.common.frames.TaskLoopFrame;
-import org.firstinspires.ftc.teamcode.common.hardwares.LLMegaTag2;
-import org.firstinspires.ftc.teamcode.common.util.MixedTelemetry;
+import org.firstinspires.ftc.teamcode.common.hardwares.WebCamAprilTagLocate;
+import org.firstinspires.ftc.teamcode.common.util.Alliance;
 
 /**
  * 混合里程计系统 (纯偏移量架构)
  * 绝对不调用硬件的 resetPosAndIMU，完全通过 2D 刚体变换实现视觉定位与跨 OpMode 记忆。
  */
 public class MixedOdo {
-    MixedTelemetry telemetry;
+    Robot robot;
     // ==========================================
     // 跨 OpMode 全局静态偏移量记忆
     // ==========================================
@@ -32,14 +34,17 @@ public class MixedOdo {
     public static double offsetHeading = 0.0;
 
     private final GoBildaPinpointDriver pinpoint;
-    private final LLMegaTag2 limelight;
+    private WebCamAprilTagLocate visualLocater;
 
     private VisionInitTask initTask;
     private Pose2D currentFieldPose = new Pose2D(DistanceUnit.METER, 0, 0, AngleUnit.RADIANS, 0);
 
-    public MixedOdo(MixedTelemetry telemetry, GoBildaPinpointDriver pinpoint, Limelight3A ll) {
-        this.telemetry = telemetry;
-        this.pinpoint = pinpoint;
+    private Alliance alliance;
+
+    public MixedOdo(Robot robot) {
+        this.robot = robot;
+        this.pinpoint = robot.hardwareMap.get(GoBildaPinpointDriver.class, Globals.odoName);
+        this.alliance = robot.teamColor;
 
         pinpoint.setOffsets(Globals.odoXOffset, Globals.odoYOffset, DistanceUnit.MM);
         pinpoint.setEncoderResolution(Globals.odoType);
@@ -50,8 +55,11 @@ public class MixedOdo {
         if (!isPoseInitialized) {
             pinpoint.resetPosAndIMU();
         }
-
-        this.limelight = new LLMegaTag2(telemetry, ll);
+        if (UseVisionLocate) {
+            this.visualLocater = new WebCamAprilTagLocate(robot.hardwareMap.get(WebcamName.class, Globals.logiC270));
+        } else {
+            isPoseInitialized = true;
+        }
         pinpoint.update();
 
         if (!isPoseInitialized) {
@@ -61,6 +69,15 @@ public class MixedOdo {
         } else {
             Log.i("MixedOdo", "TeleOp Mode: Restored coordinate offsets from Auto.");
             updateFieldPose(); // 根据缓存的偏移量计算出当前位置
+        }
+    }
+
+    public void reCollaborate() {
+        if (UseVisionLocate) {
+            initTask = new VisionInitTask(50, "VisionInitTask");
+            initTask.start();
+        } else {
+            resetPosAndIMU();
         }
     }
 
@@ -144,7 +161,7 @@ public class MixedOdo {
     }
 
     // ==========================================
-    // 异步视觉初始化任务
+    // 异步视觉初始化任务 (基于内置 IMU 角速度防抖版)
     // ==========================================
     private class VisionInitTask extends TaskLoopFrame {
         private static final int TARGET_FRAMES = 50;
@@ -173,14 +190,14 @@ public class MixedOdo {
 
                 // 锁定偏移量
                 setGlobalPose(optimizedInitPose);
-                Log.i(threadName, "Initialization Complete! Global Pose locked at: " + optimizedInitPose.toString());
+                Log.i(threadName, "Initialization Complete! Global Pose locked at: " + optimizedInitPose.toString() + ", " + optimizedInitPose.getHeading(AngleUnit.DEGREES) + "DEG");
 
                 stop();
                 isPoseInitialized = true;
                 return;
             }
 
-            telemetry.addData("Odo Visual Initializing", "got "+framesCollected+"/"+TARGET_FRAMES);
+            robot.telemetry.addData("Odo Visual Initializing", "got "+framesCollected+"/"+TARGET_FRAMES);
 
             double rates = pinpoint.getVelX(DistanceUnit.MM) + pinpoint.getVelY(DistanceUnit.MM);
 
@@ -206,14 +223,13 @@ public class MixedOdo {
                 return;
             }
 
-            // 2. 纯读取 Limelight 数据进行累加
-            LLResult result = limelight.getRawResult();
-            if (result != null && result.isValid() && result.getBotpose() != null && result.getBotposeTagCount() >= 1 ) {
-                Pose3D mt1Pose = result.getBotpose();
-                sumX += mt1Pose.getPosition().x;
-                sumY += mt1Pose.getPosition().y;
+            // 读取数据进行累加
+            Pose2D result = visualLocater.getPos();
+            if (result != null) {
+                sumX += result.getX(DistanceUnit.METER);
+                sumY += result.getY(DistanceUnit.METER);
 
-                double yawRad = Math.toRadians(mt1Pose.getOrientation().getYaw());
+                double yawRad = result.getHeading(AngleUnit.RADIANS);
                 sumSin += Math.sin(yawRad);
                 sumCos += Math.cos(yawRad);
 
@@ -224,7 +240,7 @@ public class MixedOdo {
 
 
     /**
-     * 计算从定点到当前坐标点的向量方向角度。
+     * 计算从球门到当前坐标点的向量方向角度。
      * 规定 x轴正方向为 0°，逆时针方向角度递增。
      *
      * @param currentX 当前点的X坐标
@@ -233,8 +249,8 @@ public class MixedOdo {
      */
     public double calculateDirection(double currentX, double currentY, DistanceUnit unit) {
         // 计算两点在X和Y轴上的差值（方向：当前点 - 定点）
-        double dx = currentX - Globals.BLUE_GOAL_POS.getX(unit);
-        double dy = currentY - Globals.BLUE_GOAL_POS.getY(unit);
+        double dx = currentX - alliance.getGoalPos().getX(unit);
+        double dy = currentY - alliance.getGoalPos().getY(unit);
 
         // 使用 atan2 计算弧度
         // Math.atan2 返回的值范围是 [-π, π]

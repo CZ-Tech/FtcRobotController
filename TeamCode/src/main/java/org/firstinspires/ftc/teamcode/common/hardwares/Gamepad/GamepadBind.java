@@ -12,7 +12,7 @@ import java.lang.annotation.Target;
 public @interface GamepadBind {
     int gamepad() default 1;               // 指定手柄 (1 或 2)
     Buttons button();                      // 指定按键
-    GamepadEx.ActionType type() default GamepadEx.ActionType.ON_PRESS; // 默认触发方式为按下
+    GamepadEx.ActionType actionType(); // 默认触发方式为按下
     String id() default "";                // 可选：指定ID（留空则为匿名绑定）
 
     // 允许指定该绑定生效的 OpMode 类。留空则代表所有 OpMode 均生效。

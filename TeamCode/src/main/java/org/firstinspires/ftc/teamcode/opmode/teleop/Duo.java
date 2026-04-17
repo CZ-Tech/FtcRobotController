@@ -2,9 +2,14 @@ package org.firstinspires.ftc.teamcode.opmode.teleop;
 
 import static org.firstinspires.ftc.teamcode.common.hardwares.Gamepad.controllers.Buttons.*;
 
+import android.util.Log;
+
 import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 
+import org.firstinspires.ftc.teamcode.common.hardwares.Gamepad.GamepadBind;
+import org.firstinspires.ftc.teamcode.common.hardwares.Gamepad.GamepadEx;
+import org.firstinspires.ftc.teamcode.common.hardwares.Gamepad.controllers.Buttons;
 import org.firstinspires.ftc.teamcode.common.util.Alliance;
 import org.firstinspires.ftc.teamcode.common.Robot;
 
@@ -28,18 +33,32 @@ public class Duo extends LinearOpMode {
                             else telemetry.addLine("Button.A - KeyToggle 2");
                         }
                 )
+
         ;
         waitForStart();
         while (opModeIsActive()) {
-            // update 必须每次循环最开始执行，并且整个循环内每个手柄只能执行一次。
-            robot.gamepad1.update();
-
+            // update 必须每次循环最开始执行且只能执行一次
+            robot.updateAllUnasync();
             robot.odoDrivetrain.driveRobotFieldCentric(
-                    gamepad1.left_stick_y,
+                    -gamepad1.left_stick_y,
                     gamepad1.left_stick_x,
                     gamepad1.right_stick_x
             );
-            telemetry.update();
+        }
+    }
+
+    @GamepadBind(gamepad = 1, button = LEFT_BUMPER, actionType = GamepadEx.ActionType.WHEN_DOWN, activeIn = DuoRed.class)
+    public void forward() {
+        robot.odoDrivetrain.driveRobotFieldCentric(
+                1, 0, 0
+        );
+    }
+
+    @GamepadBind(gamepad = 1, button = Buttons.SHARE, actionType = GamepadEx.ActionType.WHEN_DOWN)
+    public void resetOdo() {
+        Log.d("sss", "test");
+        if (Buttons.OPTIONS.wasJustPressed(robot.opMode.gamepad1)) {
+            robot.odoDrivetrain.resetYaw();
         }
     }
 

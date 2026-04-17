@@ -116,7 +116,6 @@ public class OdoDrivetrain {
         tempAngle = getHeading(AngleUnit.DEGREES);
         angleOffset = AngleUnit.DEGREES.normalize(angleOffset - tempAngle);
 
-//        robot.gyroTracker.handleReset(UnnormalizedAngleUnit.DEGREES);  // FiXME 理论上这玩意没用了
         while(robot.opMode.gamepad1.share || robot.opMode.gamepad2.options);
     }
 
@@ -160,37 +159,4 @@ public class OdoDrivetrain {
         driveRightBack.setZeroPowerBehavior(behavior);
     }
 
-    public void turnTo(double heading, double turn_range, double speed){
-        setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
-        ElapsedTime runtime = new ElapsedTime();
-        runtime.reset();
-        robot.odo.update();
-        HEADING_ERROR = getHeading(AngleUnit.DEGREES) - heading;
-        while(robot.opMode.opModeIsActive() && runtime.seconds() <= 4 && Math.abs(HEADING_ERROR) > turn_range){
-            robot.odo.update();
-
-//            if (HEADING_ERROR <= 150) HEADING_ERROR = getHeading(AngleUnit.DEGREES) - heading;
-            HEADING_ERROR = getHeading(AngleUnit.DEGREES) - heading;
-
-//            robot.telemetry.addData("Unnormalized Heading", getHeading(UnnormalizedAngleUnit.DEGREES));
-            robot.telemetry.addData("Normalized Heading", getHeading(AngleUnit.DEGREES));
-            robot.telemetry.addData("Error", HEADING_ERROR);
-            robot.telemetry.addData("Time", runtime.seconds());
-            robot.telemetry.update();
-
-            driveRobotFieldCentric(
-                    reCulcGamepad(-robot.opMode.gamepad1.left_stick_y),
-                    reCulcGamepad(robot.opMode.gamepad1.left_stick_x),
-                    Range.clip(HEADING_ERROR * Globals.TURN_GAIN, -speed, speed));
-        }
-        stopMotor();
-    }
-
-    public void turnTo(double heading){
-        turnTo(heading, TURN_RANGE, TURN_SPEED);
-    }
-
-    public void turnTo(double heading, double turn_range){
-        turnTo(heading, turn_range, TURN_SPEED);
-    }
 }

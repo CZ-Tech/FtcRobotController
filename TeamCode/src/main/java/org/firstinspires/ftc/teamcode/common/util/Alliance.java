@@ -1,5 +1,8 @@
 package org.firstinspires.ftc.teamcode.common.util;
 
+import org.firstinspires.ftc.robotcore.external.navigation.Pose2D;
+import org.firstinspires.ftc.teamcode.common.Globals;
+
 public enum Alliance {
     NONE(0),
     RED(1),
@@ -14,13 +17,8 @@ public enum Alliance {
         return color;
     }
 
-    public int getBaseAprilTag(){
-        if (color == BLUE.getColor()) return 20;
-        return 24;
-    }
-
-    public double getBaseAngle(){
-        if (color == BLUE.getColor()) return 54;
-        return -54;
+    public Pose2D getGoalPos(){
+        if (color == BLUE.getColor()) return Globals.BLUE_GOAL_POS;
+        return Globals.RED_GOAL_POS;
     }
 }

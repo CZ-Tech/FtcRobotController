@@ -9,13 +9,8 @@ import org.firstinspires.ftc.robotcore.external.navigation.Pose2D;
 
 
 public class Globals {
+    // TODO 将此处改为true进入调试模式，用于测试每个电机方向。
     public static boolean DEBUG=true;
-    public static boolean DEBUG_RUN_FUNC = false;
-    public static boolean DO_NOT_RUN_FUNC = false;
-
-
-    // 反注释下方代码进入调试模式，用于测试每个电机方向。
-    // Globals.DEBUG = true;
     // 一号手柄按住share键或者back键测试
     /**
      * Xbox/PS4 Button - Motor
@@ -47,30 +42,11 @@ public class Globals {
     public static String RightBackMotor = "rbm";
 
     //摄像头
+    public static boolean UseVisionLocate = false;  // 如果你没装摄像头，请将此处设为false
     public static String limelight = "Webcam 1";
     public static String logiC270 = "Webcam 2";
-    //发射器
-    public static String leftShooter = "ls";//eh 2
-    public static String rightShooter = "rs";//eh 3
-    //Intaker
-    public static String leftArm = "ila";
-    public static String rightArm = "ira";
-    public static String intaker = "intaker";//eh 0
-    //传送带
-    public static String leftBelt = "lb";
-    public static String rightBelt = "rb";
-    public static String belt = "belt";//eh 1
-    //门
-    public static String doorController = "dc";
-    public static String doorWheel = "dw";
-    //分拣舵机
-    public static String classifierServo = "cls";
 
-//    public static DcMotor.Direction LeftFrontMotorDirection = DcMotor.Direction.FORWARD;
-//    public static DcMotor.Direction RightFrontMotoDirection = DcMotor.Direction.FORWARD;
-//    public static DcMotor.Direction LeftBackMotorDirection = DcMotor.Direction.FORWARD;
-//    public static DcMotor.Direction RightBackMotorDirection = DcMotor.Direction.FORWARD;
-
+    // 设置电机正方向，确保默认向前
     public static DcMotor.Direction LeftFrontMotorDirection = DcMotor.Direction.REVERSE;
     public static DcMotor.Direction RightFrontMotoDirection = DcMotor.Direction.REVERSE;
     public static DcMotor.Direction LeftBackMotorDirection = DcMotor.Direction.REVERSE;
@@ -100,35 +76,13 @@ public class Globals {
     // 确认odo编码器方向，向左读数增加。
     public static GoBildaPinpointDriver.EncoderDirection odoYDirection = GoBildaPinpointDriver.EncoderDirection.REVERSED;
 
-    //电机相关
-    public static double TURN_GAIN = 0.0005;
-    public static double STEER_GAIN = 0.02;
-    public static int[] diss_far = {3300, 2960, 3045};
-//    public static int[] diss_far_2 = {3580, 3100, 3125};
-    public static int[] diss_near = {2865, 2715, 2700};
 
-    public static double ShooterP = 0.0028;
-    public static double ShooterI = 0.0005;
-    public static double ShooterD = 0.00003;
-
-    // 软PID循环速率
+    // 软PID循环速率 (如果你使用util包中的的pid的话)
     public static int PID_THREAD_Hz = 120;
 
-    public static double Shoot_time = 2.15;
-
-    public static double SHOOT_VEL_TOLERANCE = 10;
-    public static double SHOOT_ACCEL_TOLERANCE = 1;
-    public static int FAR_PWM_1 = 3450;
-    public static int FAR_PWM_2 = 3200;
-    //视觉相关
-
-    //intaker电机0 belt电机1
-
-
-    public static String ImuName = "imu";
-
-    public static Pose2D RED_GOAL_POS = new Pose2D(DistanceUnit.INCH, -60, 60, AngleUnit.DEGREES, 0);
-    public static Pose2D BLUE_GOAL_POS = new Pose2D(DistanceUnit.INCH, -60, -60, AngleUnit.DEGREES, 0);
+    //
+    public static Pose2D RED_GOAL_POS = new Pose2D(DistanceUnit.INCH, -72, 72, AngleUnit.DEGREES, 0);
+    public static Pose2D BLUE_GOAL_POS = new Pose2D(DistanceUnit.INCH, -72, -72, AngleUnit.DEGREES, 0);
 
     public static double HEAD_SHOOT_ANGLE_DEG = 180;  // 定义的车头和发射之间的夹角
 

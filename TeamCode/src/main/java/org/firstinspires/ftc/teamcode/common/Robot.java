@@ -1,6 +1,8 @@
 package org.firstinspires.ftc.teamcode.common;
 
 
+import android.util.Log;
+
 import com.qualcomm.hardware.gobilda.GoBildaPinpointDriver;
 import com.qualcomm.hardware.limelightvision.Limelight3A;
 import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
@@ -13,7 +15,6 @@ import org.firstinspires.ftc.teamcode.common.drivetrain.OdoDrivetrain;
 import org.firstinspires.ftc.teamcode.common.hardwares.Gamepad.GamepadBind;
 import org.firstinspires.ftc.teamcode.common.hardwares.Gamepad.GamepadEx;
 import org.firstinspires.ftc.teamcode.common.hardwares.Gamepad.GamepadReflectBinder;
-import org.firstinspires.ftc.teamcode.common.hardwares.Gamepad.ListEventGamepad;
 import org.firstinspires.ftc.teamcode.common.hardwares.Gamepad.controllers.Buttons;
 import org.firstinspires.ftc.teamcode.common.util.Alliance;
 import org.firstinspires.ftc.teamcode.common.util.MixedTelemetry;
@@ -40,9 +41,10 @@ public class Robot {
         this.opMode = opMode;
         this.hardwareMap = opMode.hardwareMap; //硬件映射
         this.telemetry = new MixedTelemetry(opMode.telemetry);//DH上的遥测
-        this.odo = new MixedOdo(telemetry,
-                hardwareMap.get(GoBildaPinpointDriver.class, Globals.odoName),
-                hardwareMap.get(Limelight3A.class, "limelight"));
+//        this.odo = new MixedOdo(telemetry,
+//                hardwareMap.get(GoBildaPinpointDriver.class, Globals.odoName),
+//                hardwareMap.get(Limelight3A.class, "limelight"));
+        this.odo = new MixedOdo(this);
 
         this.gamepad1 = new GamepadEx(opMode.gamepad1, opMode::opModeIsActive); //一个控制器
         this.gamepad2 = new GamepadEx(opMode.gamepad2, opMode::opModeIsActive); //另一个控制器
@@ -64,32 +66,42 @@ public class Robot {
     }
 
 
+
+
     /**
-     * 停止机器人的动作，时间以毫秒为单位
-     *
-     * @param milliseconds 需要暂停的毫秒数量
-     * @return Robot
+     * 暂停当前线程
+     * @param milliseconds 需要暂停的毫秒数
      */
-    public Robot sleep(long milliseconds) {
-        opMode.sleep(milliseconds);
+    public static void sleep(long milliseconds) {
+        try {
+            Thread.sleep(milliseconds);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
+    }
+
+    /**
+     * 暂停当前线程
+     * @param milliseconds 需要暂停的毫秒数
+     * @return 可以链式调用
+     */
+    public Robot waitFor(Long milliseconds) {
+        try {
+            Thread.sleep(milliseconds);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
         return this;
     }
 
     /**
-     * 等待一段时间，会阻塞当前进程（何意味？
-     * @param millisecond
-     * @return 甚至还能链式调用？？？
+     * 建议将所有需要在主线程每轮循环执行一次的操作都放在这里
+     * 应当在opMode每次循环最开始执行
      */
-    public Robot waitFor(double millisecond){
-        ElapsedTime runtime = new ElapsedTime();
-        runtime.reset();
-        while (runtime.milliseconds() <= millisecond && opMode.opModeIsActive());
-        return this;
-    }
-
-    // 专属行为：只有在 MainTeleOp（正赛）里，B 键才是反转吐出
-    @GamepadBind(gamepad = 1, button = Buttons.B, activeIn = {Duo.class})
-    private void reverseIntake() {
-        // ...
+    public void updateAllUnasync() {
+        // update 必须每次循环最开始执行，并且整个循环内每个手柄只能执行一次。
+        gamepad1.update();
+        odo.update();
+        telemetry.update();
     }
 }

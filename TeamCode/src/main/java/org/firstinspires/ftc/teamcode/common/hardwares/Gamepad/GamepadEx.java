@@ -117,12 +117,9 @@ public class GamepadEx {
     public float get(LinearReturns trigger) { return trigger.getFloatValue(gamepad); }
     public float[] get(PositionReturns stick) { return stick.getPos(gamepad); }
 
-    // ==========================================
-    // 轻量级处理器
-    // ==========================================
+
     /**
-     * 极轻量级事件分发器。
-     * 本身不存储任何状态和集合，仅作为生成联合主键并向外层 5 张大表注册事件的代理。
+     * 生成联合主键并向外层注册事件的代理
      */
     public class ButtonHandler {
         private final Buttons button;
@@ -146,7 +143,7 @@ public class GamepadEx {
         }
 
         // ==========================================
-        // 1. 无 ID 绑定 (Init 阶段专用，Active 抛异常)
+        // 无 ID 绑定 (Init 阶段专用，Active 抛异常)
         // ==========================================
 
         public GamepadEx onPress(Runnable action) {
@@ -185,7 +182,7 @@ public class GamepadEx {
         }
 
         // ==========================================
-        // 2. 带 ID 绑定 (允许 loop() 运行时安全覆盖)
+        // 带 ID 绑定 (允许 loop() 运行时安全覆盖)
         // ==========================================
 
         public GamepadEx onPress(String id, Runnable action) {
@@ -232,7 +229,7 @@ public class GamepadEx {
     private static class EventBinding<T> {
         final Buttons button;
         final T action;
-        int toggleCount = 0; // 核心改动：专属的状态计数器
+        int toggleCount = 0; // 专属状态计数器
         EventBinding(Buttons button, T action) {
             this.button = button;
             this.action = action;

@@ -7,6 +7,10 @@ import java.util.function.Consumer;
 
 public class GamepadReflectBinder {
 
+    /**
+     * 必须在robot中调用，会扫描所有绑定在Robot中的子系统和OpMode中绑定的按键事件，如果没有在Robot中绑定则不会扫描
+     * @param robot 要扫描的Robot类
+     */
     public static void bind(Robot robot) {
         if (robot.gamepad1 == null || robot.gamepad2 == null || robot.opMode == null) {
             throw new IllegalStateException("Please call robot.init() before bind()，make sure gamepad and opMode has been initialized！");
@@ -49,7 +53,7 @@ public class GamepadReflectBinder {
             if (method.isAnnotationPresent(GamepadBind.class)) {
                 GamepadBind annotation = method.getAnnotation(GamepadBind.class);
 
-                if (annotation.type() == GamepadEx.ActionType.ON_TOGGLE) {
+                if (annotation.actionType() == GamepadEx.ActionType.ON_TOGGLE) {
                     Class<?>[] params = method.getParameterTypes();
                     if (params.length != 1 || (params[0] != int.class && params[0] != Integer.class)) {
                         throw new IllegalArgumentException("Method " + method.getName() + " annotated with ON_TOGGLE must accept exactly one 'int' parameter.");
@@ -84,7 +88,7 @@ public class GamepadReflectBinder {
                 boolean hasId = !annotation.id().isEmpty();
 
                 try {
-                    if (annotation.type() == GamepadEx.ActionType.ON_TOGGLE) {
+                    if (annotation.actionType() == GamepadEx.ActionType.ON_TOGGLE) {
                         Consumer<Integer> action = count -> {
                             try { method.invoke(target, count); }
                             catch (Exception e) { throw new RuntimeException(e); }
@@ -96,7 +100,7 @@ public class GamepadReflectBinder {
                             try { method.invoke(target); }
                             catch (Exception e) { throw new RuntimeException(e); }
                         };
-                        switch (annotation.type()) {
+                        switch (annotation.actionType()) {
                             case ON_PRESS:   if(hasId) handler.onPress(annotation.id(), action);   else handler.onPress(action); break;
                             case ON_RELEASE: if(hasId) handler.onRelease(annotation.id(), action); else handler.onRelease(action); break;
                             case WHEN_DOWN:  if(hasId) handler.whenDown(annotation.id(), action);  else handler.whenDown(action); break;

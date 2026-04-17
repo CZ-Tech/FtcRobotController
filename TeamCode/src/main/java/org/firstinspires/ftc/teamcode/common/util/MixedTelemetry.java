@@ -10,6 +10,10 @@ public class MixedTelemetry {
     public void addLine(String value) {
         officialTelemetry.addLine(value);
     }
+    
+    public void addLine() {
+        officialTelemetry.addLine();
+    }
 
 
     public void addData(String key, Object data) {
