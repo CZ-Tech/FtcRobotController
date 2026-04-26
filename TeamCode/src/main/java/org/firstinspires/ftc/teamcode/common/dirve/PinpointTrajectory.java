@@ -237,8 +237,8 @@ public class PinpointTrajectory {
             double h = Math.abs(preH - curH) < 300 ?
                     curH
                     : curH + 360 * (preH > 0 ? 1 : -1);
-            x_error = gotoX - getX();
-            y_error = gotoY - getY();
+            x_error = (gotoX + startPoint[0]) - getX();
+            y_error = (gotoY + startPoint[1]) - getY();
             turnSpeed = Range.clip((gotoH - h) * TURN_SPEED * TURN_GAIN, -1, 1);
             preH = h;
 
