@@ -67,6 +67,14 @@ public class TrajectoryLoader {
             for (int i = 0; i < keyframes.size(); i++) {
                 Keyframe kf = keyframes.get(i);
                 if (i == 0) {
+                    // 同步物理位置到里程计系统，消除由于起始点不对齐导致的瞬时巨大误差
+                    trajectory.setPose(new org.firstinspires.ftc.robotcore.external.navigation.Pose2D(
+                            org.firstinspires.ftc.robotcore.external.navigation.DistanceUnit.INCH, 
+                            kf.x, kf.y, 
+                            org.firstinspires.ftc.robotcore.external.navigation.AngleUnit.DEGREES, 
+                            kf.heading
+                    ));
+
                     // 初始化起始点。注意：PinpointTrajectory 会将此点记为 startPoint
                     trajectory.startMove(kf.x, kf.y, kf.dx, kf.dy);
                     

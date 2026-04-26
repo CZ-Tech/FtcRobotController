@@ -84,6 +84,11 @@ public class PinpointTrajectory {
         robot.odo.resetPosAndIMU();
         return this;
     }
+
+    public PinpointTrajectory setPose(Pose2D pose){
+        robot.odo.setGlobalPose(pose);
+        return this;
+    }
     //endregion
 
     //region Start Robot
