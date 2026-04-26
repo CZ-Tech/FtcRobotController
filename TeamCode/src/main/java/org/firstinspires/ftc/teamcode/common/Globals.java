@@ -11,7 +11,7 @@ import org.firstinspires.ftc.robotcore.external.navigation.Pose2D;
 
 public class Globals {
     // TODO 将此处改为true进入调试模式，用于测试每个电机方向。
-    public static boolean DEBUG=true;
+    public static boolean DEBUG=false;
     // 一号手柄按住share键或者back键测试
     /**
      * Xbox/PS4 Button - Motor
