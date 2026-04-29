@@ -4,8 +4,8 @@ import com.qualcomm.robotcore.eventloop.opmode.Autonomous;
 import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
 
 import org.firstinspires.ftc.teamcode.common.Robot;
-import org.firstinspires.ftc.teamcode.common.dirve.PinpointTrajectory;
-import org.firstinspires.ftc.teamcode.common.dirve.TrajectoryLoader;
+import org.firstinspires.ftc.teamcode.common.drive.PinpointTrajectory;
+import org.firstinspires.ftc.teamcode.common.drive.TrajectoryLoader;
 
 @Autonomous(name = "JsonAuto")
 public class JsonAuto extends LinearOpMode {

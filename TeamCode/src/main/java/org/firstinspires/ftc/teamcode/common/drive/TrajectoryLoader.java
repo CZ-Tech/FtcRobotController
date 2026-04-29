@@ -1,8 +1,10 @@
-package org.firstinspires.ftc.teamcode.common.dirve;
+package org.firstinspires.ftc.teamcode.common.drive;
 
+import org.firstinspires.ftc.robotcore.external.navigation.Pose2D;
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
+
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
@@ -37,7 +39,7 @@ public class TrajectoryLoader {
 
     /**
      * Parses the JSON keyframes and executes them on the provided PinpointTrajectory instance.
-     * 
+     *
      * @param jsonString The JSON string containing an array of keyframes.
      * @param trajectory The PinpointTrajectory instance to execute on.
      */
@@ -46,8 +48,17 @@ public class TrajectoryLoader {
             JSONArray jsonArray = new JSONArray(jsonString);
             List<Keyframe> keyframes = new ArrayList<>();
 
+            double cumulativeTime = 0;
             for (int i = 0; i < jsonArray.length(); i++) {
-                keyframes.add(new Keyframe(jsonArray.getJSONObject(i)));
+                JSONObject obj = jsonArray.getJSONObject(i);
+                Keyframe kf = new Keyframe(obj);
+                if (obj.has("time")) {
+                    cumulativeTime = kf.time;
+                } else {
+                    cumulativeTime += kf.duration;
+                    kf.time = cumulativeTime;
+                }
+                keyframes.add(kf);
             }
 
             if (keyframes.isEmpty()) {
@@ -68,19 +79,19 @@ public class TrajectoryLoader {
                 Keyframe kf = keyframes.get(i);
                 if (i == 0) {
                     // 同步物理位置到里程计系统，消除由于起始点不对齐导致的瞬时巨大误差
-                    trajectory.setPose(new org.firstinspires.ftc.robotcore.external.navigation.Pose2D(
-                            org.firstinspires.ftc.robotcore.external.navigation.DistanceUnit.INCH, 
-                            kf.x, kf.y, 
-                            org.firstinspires.ftc.robotcore.external.navigation.AngleUnit.DEGREES, 
+                    trajectory.setPose(new Pose2D(
+                            org.firstinspires.ftc.robotcore.external.navigation.DistanceUnit.INCH,
+                            kf.x, kf.y,
+                            org.firstinspires.ftc.robotcore.external.navigation.AngleUnit.DEGREES,
                             kf.heading
                     ));
 
                     // 初始化起始点。注意：PinpointTrajectory 会将此点记为 startPoint
                     trajectory.startMove(kf.x, kf.y, kf.dx, kf.dy);
-                    
+
                     // 同步初始目标朝向和追踪朝向，防止首段路径出现 360 度旋转 bug
                     trajectory.heading = kf.heading;
-                    trajectory.preH = kf.heading; 
+                    trajectory.preH = kf.heading;
                 } else {
                     // 按照时间线执行后续点
                     trajectory.addPoint(kf.time, kf.x, kf.y, kf.dx, kf.dy, kf.heading);

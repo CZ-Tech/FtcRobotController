@@ -3,7 +3,7 @@ package org.firstinspires.ftc.teamcode.opmode.auto;
 import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
 
 import org.firstinspires.ftc.teamcode.common.Robot;
-import org.firstinspires.ftc.teamcode.common.dirve.PinpointTrajectory;
+import org.firstinspires.ftc.teamcode.common.drive.PinpointTrajectory;
 
 public class Auto extends LinearOpMode {
     @Override
