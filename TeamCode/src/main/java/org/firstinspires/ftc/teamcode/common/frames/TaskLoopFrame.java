@@ -39,7 +39,7 @@ public abstract class TaskLoopFrame implements StoppableTask {
      * 简便 API：使用 Lambda 快速创建任务
      */
     public static TaskLoopFrame create(Runnable action) {
-        return new TaskLoopFrame(20, "anymous_task"+count) {
+        return new TaskLoopFrame(20, "anymous_task" + (count++)) {
             @Override
             protected void update() {
                 action.run();

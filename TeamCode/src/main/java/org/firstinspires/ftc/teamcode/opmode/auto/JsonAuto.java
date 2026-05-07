@@ -18,7 +18,8 @@ public class JsonAuto extends LinearOpMode {
             "        \"heading\": 0.0,\n" +
             "        \"dHeading\": 0.0,\n" +
             "        \"duration\": 1.0,\n" +
-            "        \"time\": 0.0\n" +
+            "        \"time\": 0.0,\n" +
+            "        \"marker\": \"start_task\"\n" +
             "    },\n" +
             "    {\n" +
             "        \"x\": -49.03008508682251,\n" +
@@ -38,7 +39,8 @@ public class JsonAuto extends LinearOpMode {
             "        \"heading\": 0.0,\n" +
             "        \"dHeading\": 0.0,\n" +
             "        \"duration\": 1.0,\n" +
-            "        \"time\": 2.0\n" +
+            "        \"time\": 2.0,\n" +
+            "        \"marker\": \"mid_task\"\n" +
             "    },\n" +
             "    {\n" +
             "        \"x\": 46.513275146484375,\n" +
@@ -75,7 +77,17 @@ public class JsonAuto extends LinearOpMode {
         waitForStart();
 
         if (opModeIsActive()) {
-            TrajectoryLoader.executeJsonTrajectory(autoStr, trajectory);
+            // 3. 示例：使用 TrajectoryLoader 实例 API 添加并执行带标记的任务
+            new TrajectoryLoader(trajectory)
+                    .addMarkerTask("start_task", () -> {
+                        // 这里的代码将在路径起始点开启任务（由于 PinpointTrajectory 的机制，会在独立线程循环执行）
+                        telemetry.addLine("Task started at the beginning!");
+                    })
+                    .addMarkerTask("mid_task", () -> {
+                        // 这里的代码将在到达中间标记点时开启任务
+                        telemetry.addLine("Reached the middle marker!");
+                    })
+                    .execute(autoStr);
         }
     }
 }
