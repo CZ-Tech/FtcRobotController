@@ -80,7 +80,7 @@ public class JsonAuto extends LinearOpMode {
             // 3. 示例：使用 TrajectoryLoader 实例 API 添加并执行带标记的任务
             new TrajectoryLoader(trajectory)
                     .addMarkerTask("start_task", () -> {
-                        // 这里的代码将在路径起始点开启任务（由于 PinpointTrajectory 的机制，会在独立线程循环执行）
+                        // 这里的代码将在路径标记点开启任务（由于 PinpointTrajectory 的机制，会在独立线程循环执行）
                         telemetry.addLine("Task started at the beginning!");
                     })
                     .addMarkerTask("mid_task", () -> {
