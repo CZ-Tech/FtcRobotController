@@ -128,7 +128,7 @@ public class PinpointTrajectory {
         this.dx = dx;
         this.dy = dy;
         this.fn = fn;
-        TaskLoopFrame.create(fn).start();
+        TaskLoopFrame.runOnce(fn);
         this.heading = getHeading();
         this.preH = getHeading();
         delayTime = 0;
@@ -305,7 +305,7 @@ public class PinpointTrajectory {
         this.heading = heading;
 
         //run function
-        if ((!Globals.DEBUG || DEBUG_RUN_FUNC) && !DO_NOT_RUN_FUNC) TaskLoopFrame.create(fn).start();
+        if ((!Globals.DEBUG || DEBUG_RUN_FUNC) && !DO_NOT_RUN_FUNC) TaskLoopFrame.runOnce(fn);
 
         return this;
     }
