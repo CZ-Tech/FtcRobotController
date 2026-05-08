@@ -36,15 +36,28 @@ public abstract class TaskLoopFrame implements StoppableTask {
     }
 
     /**
-     * 简便 API：使用 Lambda 快速创建任务
+     * 简便 API：使用 Lambda 快速创建循环任务
      */
     public static TaskLoopFrame create(Runnable action) {
-        return new TaskLoopFrame(20, "anymous_task" + (count++)) {
+        return new TaskLoopFrame(20, "anonymous_task" + (count++)) {
             @Override
             protected void update() {
                 action.run();
             }
         };
+    }
+
+    /**
+     * 异步执行一次性任务，并在执行完成后自动停止和注销
+     */
+    public static void runOnce(Runnable action) {
+        new TaskLoopFrame(100, "once_task" + (count++)) {
+            @Override
+            protected void update() {
+                action.run();
+                stop();
+            }
+        }.start();
     }
 
     public final synchronized void start() {
