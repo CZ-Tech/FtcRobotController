@@ -226,13 +226,13 @@ public class PinpointTrajectory {
 
             //calculate going position
             gotoX = spline_get(
-                    spline_fit(this.lx - startPoint[0], this.ldx,
-                            this.x - startPoint[0], this.dx),
+                    spline_fit(this.lx, this.ldx,
+                            this.x, this.dx),
                     (now - this.lt) / (this.t - this.lt)
             );
             gotoY = spline_get(
-                    spline_fit(this.ly - startPoint[1], this.ldy,
-                            this.y - startPoint[1], this.dy),
+                    spline_fit(this.ly, this.ldy,
+                            this.y, this.dy),
                     (now - this.lt) / (this.t - this.lt)
             );
             gotoH = spline_get(
@@ -257,7 +257,7 @@ public class PinpointTrajectory {
             );
 
             //FTC Dashboard
-            packet.fieldOverlay().setRotation(-Math.toRadians(90)).setTranslation(4 + startPoint[1], -6 * 12 + 7 + startPoint[0]).setStroke("blue").setStrokeWidth(1).strokeRect(gotoX - 8.5, gotoY - 9, 17, 18);
+            packet.fieldOverlay().setRotation(-Math.toRadians(90)).setTranslation(4, -6 * 12 + 7).setStroke("blue").setStrokeWidth(1).strokeRect(gotoX - 8.5, gotoY - 9, 17, 18);
             dashboard.sendTelemetryPacket(packet);
             if (Globals.DEBUG) robot.sleep(200);
 
