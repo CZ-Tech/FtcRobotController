@@ -74,10 +74,17 @@ public class MixedOdo {
 
     public void reCollaborate() {
         if (UseVisionLocate) {
-            initTask = new VisionInitTask(50, "VisionInitTask");
-            initTask.start();
+            isPoseInitialized = false;
+            if (visualLocater == null) {
+                this.visualLocater = new WebCamAprilTagLocate(robot.hardwareMap.get(WebcamName.class, Globals.logiC270));
+            }
+            if (initTask == null || !initTask.isRunning()) {
+                initTask = new VisionInitTask(50, "VisionInitTask");
+                initTask.start();
+            }
         } else {
             resetPosAndIMU();
+            isPoseInitialized = true;
         }
     }
 

@@ -53,7 +53,7 @@ public class WebCamAprilTagLocate implements StoppableTask {
     private final Position cameraPosition = new Position(DistanceUnit.INCH,
             0, 0, 0, 0);
     private final YawPitchRollAngles cameraOrientation = new YawPitchRollAngles(AngleUnit.DEGREES,
-            -90, -90, 0, 0);
+            90, -90, 0, 0);
 
     /**
      * The variable to store our instance of the AprilTag processor.

@@ -82,14 +82,25 @@ public class Robot {
 
     /**
      * 暂停当前线程
-     * @param milliseconds 需要暂停的毫秒数
+     * @param millisecond 需要暂停的毫秒数
      * @return 可以链式调用
      */
-    public Robot waitFor(Long milliseconds) {
-        try {
-            Thread.sleep(milliseconds);
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
+    public Robot waitFor(double millisecond) {
+        ElapsedTime runtime = new ElapsedTime();
+        runtime.reset();
+        while (runtime.milliseconds() <= millisecond && opMode.opModeIsActive());
+        return this;
+    }
+
+    /**
+     * 并行运行多个任务
+     *
+     * @param commands 任务列表
+     * @return Robot
+     */
+    public Robot syncRun(Runnable... commands) {
+        for (Runnable command : commands) {
+            new Thread(command).start();
         }
         return this;
     }

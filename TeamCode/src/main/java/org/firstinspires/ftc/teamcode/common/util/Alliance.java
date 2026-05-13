@@ -17,8 +17,19 @@ public enum Alliance {
         return color;
     }
 
+    public int getBaseAprilTag(){
+        if (color == BLUE.getColor()) return 20;
+        return 24;
+    }
+
+    public double getBaseAngle(){
+        if (color == BLUE.getColor()) return 54;
+        return -54;
+    }
+
     public Pose2D getGoalPos(){
-        if (color == BLUE.getColor()) return Globals.BLUE_GOAL_POS;
-        return Globals.RED_GOAL_POS;
+        if (this == RED) return Globals.RED_GOAL_POS;
+        else if (this == BLUE) return Globals.BLUE_GOAL_POS;
+        else return Globals.BLUE_GOAL_POS;
     }
 }

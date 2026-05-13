@@ -241,7 +241,7 @@ public class PinpointTrajectory {
             );
 
             //calculate errors
-            double h = Math.abs(preH - curH) < 300 ?
+            double h = Math.abs(preH - curH) < 300 ? 
                     curH
                     : curH + 360 * (preH > 0 ? 1 : -1);
             x_error = gotoX - getX();
@@ -253,46 +253,47 @@ public class PinpointTrajectory {
             if (!Globals.DEBUG) robot.odoDrivetrain.driveRobotFieldCentric(
                     x_error * P_DRIVE_STRAIGHT_GAIN * motorPowerGain,
                     -y_error * P_DRIVE_STRAIGHT_GAIN * motorPowerGain,
-                    -turnSpeed * motorPowerGain
+                    -turnSpeed * motorPowerGain      
             );
 
             //FTC Dashboard
             packet.fieldOverlay().setRotation(-Math.toRadians(90)).setTranslation(4, -6 * 12 + 7).setStroke("blue").setStrokeWidth(1).strokeRect(gotoX - 8.5, gotoY - 9, 17, 18);
-            dashboard.sendTelemetryPacket(packet);
+            dashboard.sendTelemetryPacket(packet);   
             if (Globals.DEBUG) robot.sleep(200);
 
 
-//            //telemetry datas
-//            robot.telemetry.addData("gotoX", gotoX);
-//            robot.telemetry.addData("gotoY", gotoY);
-//            robot.telemetry.addData("preH", preH);
-//            robot.telemetry.addData("gotoH", gotoH);
-//            robot.telemetry.addData("turnSpeed", turnSpeed);
-//            robot.telemetry.addLine();
-//
-//            robot.telemetry.addData("X_POS", getX());
-//            robot.telemetry.addData("Y_POS", getY());
-//            robot.telemetry.addData("Heading", getHeading());
-//            robot.telemetry.addData("TURN_GAIN", TURN_GAIN);
-//            robot.telemetry.addData("Voltage", robot.getVoltage());
-//            robot.telemetry.addData("MOTOR_GAIN", motorPowerGain);
-//            robot.telemetry.addData("Odo", robot.odo.getPosition().toString());
+            //            //telemetry datas
+            robot.telemetry.addData("gotoX", gotoX); 
+            robot.telemetry.addData("gotoY", gotoY); 
+            robot.telemetry.addData("preH", preH);   
+            robot.telemetry.addData("gotoH", gotoH); 
+            robot.telemetry.addData("turnSpeed", turnSpeed);
+            robot.telemetry.addLine();
+
+            robot.telemetry.addData("X_POS", getX());
+            robot.telemetry.addData("Y_POS", getY());
+            robot.telemetry.addData("Heading", getHeading());
+            robot.telemetry.addData("TURN_GAIN", TURN_GAIN);
+            robot.telemetry.addData("Voltage", robot.getVoltage());
+            robot.telemetry.addData("MOTOR_GAIN", motorPowerGain);
+            robot.telemetry.addData("Odo", robot.odo.getPosition().toString());
 
             //telemetry datas
-            Log.d("gotoX", String.valueOf(gotoX));
-            Log.d("gotoY", String.valueOf(gotoY));
-            Log.d("preH", String.valueOf(preH));
-            Log.d("gotoH", String.valueOf(gotoH));
-            Log.d("turnSpeed", String.valueOf(turnSpeed));
-            Log.d("auto", "--------");
+            //            Log.i("gotoX", String.valueOf(gotoX)); 
+            //            Log.i("gotoY", String.valueOf(gotoY)); 
+            //            Log.i("preH", String.valueOf(preH));   
+            //            Log.i("gotoH", String.valueOf(gotoH)); 
+            //            Log.i("turnSpeed", String.valueOf(turnSpeed));
+            //            Log.i("auto", "--------");
+            //
+            //            Log.i("X_POS", String.valueOf(getX()));
+            //            Log.i("Y_POS", String.valueOf(getY()));
+            //            Log.i("Heading", String.valueOf(getHeading()));
+            //            Log.i("TURN_GAIN", String.valueOf(TURN_GAIN));
+            //            Log.i("Voltage", String.valueOf(robot.getVoltage()));
+            //            Log.i("MOTOR_GAIN", String.valueOf(motorPowerGain));
+            //            Log.i("Odo", robot.odo.getPosition().toString());
 
-            Log.d("X_POS", String.valueOf(getX()));
-            Log.d("Y_POS", String.valueOf(getY()));
-            Log.d("Heading", String.valueOf(getHeading()));
-            Log.d("TURN_GAIN", String.valueOf(TURN_GAIN));
-            Log.d("Voltage", String.valueOf(robot.getVoltage()));
-            Log.d("MOTOR_GAIN", String.valueOf(motorPowerGain));
-            Log.d("Odo", robot.odo.getPosition().toString());
 
             robot.telemetry.addLine();
 
