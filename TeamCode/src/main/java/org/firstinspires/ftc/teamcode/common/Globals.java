@@ -95,6 +95,9 @@ public class Globals {
 
     public static double HEAD_SHOOT_ANGLE_DEG = 180;  // 定义的车头和发射之间的夹角
 
+    // 里程计速度滤波窗口长度
+    public static int odoFilterWindowLength = 5;
+
     // 设置手柄摇杆位置和输出功率间的关系
     // 基于定义在[0,1]的函数 f(x) = a*x^n + (1-a)*x
     // 通过原点对称扩展得到 [-1,1] 上的完整奇函数

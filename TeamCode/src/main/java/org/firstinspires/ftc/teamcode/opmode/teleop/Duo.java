@@ -1,15 +1,13 @@
 package org.firstinspires.ftc.teamcode.opmode.teleop;
 
-import static org.firstinspires.ftc.teamcode.common.hardwares.Gamepad.controllers.Buttons.*;
-
 import android.util.Log;
 
 import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 
-import org.firstinspires.ftc.teamcode.common.hardwares.Gamepad.GamepadBind;
-import org.firstinspires.ftc.teamcode.common.hardwares.Gamepad.GamepadEx;
-import org.firstinspires.ftc.teamcode.common.hardwares.Gamepad.controllers.Buttons;
+import org.firstinspires.ftc.teamcode.common.Gamepad.GamepadBind;
+import org.firstinspires.ftc.teamcode.common.Gamepad.GamepadEx;
+import org.firstinspires.ftc.teamcode.common.Gamepad.controllers.Buttons;
 import org.firstinspires.ftc.teamcode.common.util.Alliance;
 import org.firstinspires.ftc.teamcode.common.Robot;
 
@@ -48,7 +46,7 @@ public class Duo extends LinearOpMode {
         }
     }
 
-    @GamepadBind(gamepad = 1, button = LEFT_BUMPER, actionType = GamepadEx.ActionType.WHEN_DOWN, activeIn = DuoRed.class)
+    @GamepadBind(gamepad = 1, button = Buttons.LEFT_BUMPER, actionType = GamepadEx.ActionType.WHEN_DOWN, activeIn = DuoRed.class)
     public void forward() {
         robot.odoDrivetrain.driveRobotFieldCentric(
                 1, 0, 0

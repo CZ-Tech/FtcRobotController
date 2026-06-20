@@ -1,17 +1,14 @@
-package org.firstinspires.ftc.teamcode.common.drive;
-
-import android.util.Log;
+package org.firstinspires.ftc.teamcode.common.auto;
 
 import com.qualcomm.robotcore.hardware.DcMotor;
 import com.qualcomm.robotcore.util.ElapsedTime;
-import com.qualcomm.robotcore.util.Range;
 
 import org.firstinspires.ftc.robotcore.external.navigation.AngleUnit;
 import org.firstinspires.ftc.robotcore.external.navigation.DistanceUnit;
 import org.firstinspires.ftc.robotcore.external.navigation.Pose2D;
 import org.firstinspires.ftc.teamcode.common.Globals;
 import org.firstinspires.ftc.teamcode.common.Robot;
-import org.firstinspires.ftc.teamcode.common.aiming.AutoAimController;
+import org.firstinspires.ftc.teamcode.solutions.subsystem.AutoAimController;
 import org.firstinspires.ftc.teamcode.common.frames.TaskLoopFrame;
 
 public class PinpointTrajectory {
@@ -36,7 +33,7 @@ public class PinpointTrajectory {
 
     public ElapsedTime runtime = new ElapsedTime();
     private final Robot robot;
-    private final AutoAimController autoAimController = new AutoAimController();
+    private final AutoAimController autoAimController;
     private double gotoX, gotoY, gotoH;
 
     public enum TrajectoryMode{
@@ -69,6 +66,7 @@ public class PinpointTrajectory {
     //region Initialization
     public PinpointTrajectory(Robot robot){
         this.robot = robot;
+        this.autoAimController = new AutoAimController(robot.telemetry, robot.odo, robot.odoDrivetrain);
         robot.odoDrivetrain.setRunMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
         robot.odoDrivetrain.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
         robot.odo.resetPosAndIMU();

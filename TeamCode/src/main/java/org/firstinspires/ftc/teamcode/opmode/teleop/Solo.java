@@ -1,11 +1,5 @@
 package org.firstinspires.ftc.teamcode.opmode.teleop;
 
-import static org.firstinspires.ftc.teamcode.common.hardwares.Gamepad.controllers.Buttons.A;
-import static org.firstinspires.ftc.teamcode.common.hardwares.Gamepad.controllers.Buttons.CROSS;
-import static org.firstinspires.ftc.teamcode.common.hardwares.Gamepad.controllers.Buttons.DPAD_UP;
-import static org.firstinspires.ftc.teamcode.common.hardwares.Gamepad.controllers.Buttons.LEFT_BUMPER;
-import static org.firstinspires.ftc.teamcode.common.hardwares.Gamepad.controllers.Buttons.LEFT_STICK_BUTTON;
-
 import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 

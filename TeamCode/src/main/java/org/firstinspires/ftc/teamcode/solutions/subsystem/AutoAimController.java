@@ -1,65 +1,55 @@
-package org.firstinspires.ftc.teamcode.common.subsystems;
+package org.firstinspires.ftc.teamcode.solutions.subsystem;
 
 import static org.firstinspires.ftc.teamcode.common.Globals.HEAD_SHOOT_ANGLE_DEG;
 
 import com.acmerobotics.dashboard.config.Config;
 import com.qualcomm.robotcore.util.ElapsedTime;
 
-import org.firstinspires.ftc.robotcore.external.Telemetry;
 import org.firstinspires.ftc.robotcore.external.navigation.AngleUnit;
 import org.firstinspires.ftc.robotcore.external.navigation.DistanceUnit;
 import org.firstinspires.ftc.robotcore.external.navigation.Pose2D;
-import org.firstinspires.ftc.teamcode.common.Robot;
 import org.firstinspires.ftc.teamcode.common.drivetrain.MixedOdo;
 import org.firstinspires.ftc.teamcode.common.drivetrain.OdoDrivetrain;
+import org.firstinspires.ftc.teamcode.common.util.MixedTelemetry;
 
 @Config
 public class AutoAimController {
 
-    public static double TURN_KP = 0.1;
-    public static double TURN_KI = 0.01; // 建议先设为 0，彻底调好 PD 再说
-    public static double TURN_KD = 0.0;
+    public static double TURN_KP = 0.015;
+    public static double TURN_KI = 0.01;
+    public static double TURN_KD = 0.0015;
     public static double MAX_YAW_POWER = 1.0;
 
     // EMA 低通滤波系数 (范围 0 到 1)
     // 值越小，滤波越强，对震动的抵抗力越好，但 D 的反应越慢
     // 值越大，滤波越弱，D 的反应越快
-    public static double D_FILTER_ALPHA = 0.7;
+    public static double D_FILTER_ALPHA = 0.6;
+
+    private final MixedTelemetry telemetry;
+    private final MixedOdo odo;
+    private final OdoDrivetrain drivetrain;
 
     private ElapsedTime timer = new ElapsedTime();
     private double integralSum = 0.0;
     private double lastRawError = 0.0;
-    private double lastFilteredDerivative = 0.0; // 存储上一次滤波后的 D 值
+    private double lastFilteredDerivative = 0.0;
     private boolean isFirstRun = true;
     private final double MAX_INTEGRAL_SUM = 20.0;
 
-    private final Telemetry telemetry;
-    private final MixedOdo odo;
-    private final OdoDrivetrain drivetrain;
-
-    public AutoAimController(Telemetry telemetry, MixedOdo odo, OdoDrivetrain drivetrain) {
+    public AutoAimController(MixedTelemetry telemetry, MixedOdo odo, OdoDrivetrain drivetrain) {
         this.telemetry = telemetry;
         this.odo = odo;
         this.drivetrain = drivetrain;
     }
 
-    public void aimAtTarget(Pose2D targetPos) {
-        aimAtTarget(targetPos, 0.0, 0.0);
-    }
-
-    public void aimAtTarget(Pose2D targetPos, double currAxial, double currLateral) {
-
-        double currentX = odo.getPosition().getX(DistanceUnit.METER);
-        double currentY = odo.getPosition().getY(DistanceUnit.METER);
-        double currentHeading = odo.getPosition().getHeading(AngleUnit.DEGREES);
-
-        double dx = targetPos.getX(DistanceUnit.METER) - currentX;
-        double dy = targetPos.getY(DistanceUnit.METER) - currentY;
-
-        double targetHeading = Math.toDegrees(Math.atan2(dy, dx));
+    /**
+     * 纯 PID 航向控制——只计算输出功率，不操作底盘。
+     * 供 PinpointTrajectory 等需要自行处理驱动逻辑的调用方使用。
+     */
+    public double getPowerToAngle(double currDeg, double targetDeg) {
 
         // 1. 获取原始误差
-        double rawHeadingError = targetHeading + HEAD_SHOOT_ANGLE_DEG - currentHeading;
+        double rawHeadingError = targetDeg - currDeg;
 
         // 2. 角度标准化 (最短路径)
         while (rawHeadingError > 180.0) { rawHeadingError -= 360.0; }
@@ -95,13 +85,8 @@ public class AutoAimController {
         double iTerm = TURN_KI * integralSum;
 
         // --- 微分项 D (对变化率进行 EMA 低通滤波) ---
-        // 先计算原始的、充满噪声的变化率
         double rawDerivative = (rawHeadingError - lastRawError) / dt;
-
-        // 使用 EMA 滤波器平滑 D 项
-        // 公式：当前滤波结果 = (a * 当前原始值) + ((1 - a) * 上次滤波结果)
         double filteredDerivative = (D_FILTER_ALPHA * rawDerivative) + ((1.0 - D_FILTER_ALPHA) * lastFilteredDerivative);
-
         double dTerm = TURN_KD * filteredDerivative;
 
         // ==========================================
@@ -109,7 +94,6 @@ public class AutoAimController {
         // ==========================================
         double yawPower;
 
-        // 容差死区：如果误差极其微小，直接停转，无视底盘摩擦轮的微小震动
         if (Math.abs(rawHeadingError) < 1.0) {
             yawPower = 0.0;
             integralSum = 0.0;
@@ -125,10 +109,32 @@ public class AutoAimController {
         if (yawPower > MAX_YAW_POWER) yawPower = MAX_YAW_POWER;
         else if (yawPower < -MAX_YAW_POWER) yawPower = -MAX_YAW_POWER;
 
-        // 调用驱动
-        drivetrain.driveRobotFieldCentric(currAxial, currLateral, -yawPower);  // 疑似正负号反了
+        return yawPower;
+    }
 
-        telemetry.addData("Aim RawError", rawHeadingError);
+    /**
+     * 瞄准目标位置：自动计算目标航向 + PID 控制 + 驱动底盘。
+     */
+    public void aimAtTarget(Pose2D targetPos) {
+        aimAtTarget(targetPos, 0.0, 0.0);
+    }
+
+    public void aimAtTarget(Pose2D targetPos, double currAxial, double currLateral) {
+
+        double currentX = odo.getPosition().getX(DistanceUnit.METER);
+        double currentY = odo.getPosition().getY(DistanceUnit.METER);
+        double currentHeading = odo.getPosition().getHeading(AngleUnit.DEGREES);
+
+        double dx = targetPos.getX(DistanceUnit.METER) - currentX;
+        double dy = targetPos.getY(DistanceUnit.METER) - currentY;
+
+        double targetHeading = Math.toDegrees(Math.atan2(dy, dx)) + HEAD_SHOOT_ANGLE_DEG;
+
+        double yawPower = getPowerToAngle(currentHeading, targetHeading);
+
+        drivetrain.driveRobotFieldCentric(currAxial, currLateral, -yawPower);
+
+        telemetry.addData("Aim RawError", targetHeading - currentHeading);
         telemetry.addData("Aim YawPower", yawPower);
     }
 
