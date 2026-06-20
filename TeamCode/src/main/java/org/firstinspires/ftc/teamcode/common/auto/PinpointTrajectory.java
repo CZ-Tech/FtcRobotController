@@ -2,8 +2,6 @@ package org.firstinspires.ftc.teamcode.common.drive;
 
 import android.util.Log;
 
-import com.acmerobotics.dashboard.FtcDashboard;
-import com.acmerobotics.dashboard.telemetry.TelemetryPacket;
 import com.qualcomm.robotcore.hardware.DcMotor;
 import com.qualcomm.robotcore.util.ElapsedTime;
 import com.qualcomm.robotcore.util.Range;
@@ -13,17 +11,12 @@ import org.firstinspires.ftc.robotcore.external.navigation.DistanceUnit;
 import org.firstinspires.ftc.robotcore.external.navigation.Pose2D;
 import org.firstinspires.ftc.teamcode.common.Globals;
 import org.firstinspires.ftc.teamcode.common.Robot;
+import org.firstinspires.ftc.teamcode.common.aiming.AutoAimController;
 import org.firstinspires.ftc.teamcode.common.frames.TaskLoopFrame;
 
-//@Confg
 public class PinpointTrajectory {
-    public static boolean DEBUG_RUN_FUNC = false;
+    public static boolean DEBUG_RUN_FUNC = true;
     public static boolean DO_NOT_RUN_FUNC = false;
-
-    //region Dashboard
-    private TelemetryPacket packet = new TelemetryPacket();
-    private FtcDashboard dashboard = FtcDashboard.getInstance();
-    //endregion
 
     //region Point Details
     public double[] startPoint;
@@ -35,14 +28,15 @@ public class PinpointTrajectory {
     public Runnable fn; //Present function
 
     //Constants
-    public static double TURN_SPEED = 0.4;
-    public static double P_DRIVE_STEER_GAIN = 0.13;
-    public static double P_DRIVE_TURN_GAIN = 0.07;
-    public static double P_DRIVE_STRAIGHT_GAIN = 0.1;
+    public static double TURN_SPEED = 0.25;
+    public static double P_DRIVE_STRAIGHT_GAIN = 0.07;
+    public static double TURN_DEAD_AREA = 1;  // 当角度误差小于该值(单位度)时不纠偏
     public static double motorVoltage = 12;
+    public static double VOLTAGE_COMP_WEIGHT = 0.1; // 电压补偿权重，为0时完全禁用补偿，为1时完全启用
 
     public ElapsedTime runtime = new ElapsedTime();
     private final Robot robot;
+    private final AutoAimController autoAimController = new AutoAimController();
     private double gotoX, gotoY, gotoH;
 
     public enum TrajectoryMode{
@@ -78,6 +72,10 @@ public class PinpointTrajectory {
         robot.odoDrivetrain.setRunMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
         robot.odoDrivetrain.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
         robot.odo.resetPosAndIMU();
+    }
+
+    public Robot getRobot() {
+        return robot;
     }
 
     public PinpointTrajectory reset(){
@@ -135,10 +133,6 @@ public class PinpointTrajectory {
 
         //start runtime
         runtime.reset();
-
-        //FTCDashboard settings
-        packet.fieldOverlay()
-                .drawImage("/dash/decode.png", 0, 0, 144, 144, Math.toRadians(-90), 72, 72, false);
 
 //        motorVoltage = robot.getVoltage();
         return this;
@@ -203,15 +197,11 @@ public class PinpointTrajectory {
         this.dy = dy;
         this.fn = fn;
 
-        double TURN_GAIN;
-        if (heading == this.heading) TURN_GAIN = P_DRIVE_STEER_GAIN;
-        else TURN_GAIN = P_DRIVE_TURN_GAIN;
-
-
-
         //main movement methods
         double x_error, y_error, turnSpeed, motorPowerGain;
         double now = runtime.seconds();
+
+        autoAimController.resetController();
 
         while (now <= this.t && now > this.lt && robot.opMode.opModeIsActive()){
             //update current pose
@@ -219,7 +209,8 @@ public class PinpointTrajectory {
 
             double curH = getHeading();
 
-            motorPowerGain = Math.abs(motorVoltage / robot.getVoltage());
+            double rawMotorPowerGain = Math.abs(motorVoltage / robot.getVoltage());
+            motorPowerGain = 1.0 + (rawMotorPowerGain - 1.0) * VOLTAGE_COMP_WEIGHT;
 
             //get current time
             now = runtime.seconds();
@@ -246,7 +237,7 @@ public class PinpointTrajectory {
                     : curH + 360 * (preH > 0 ? 1 : -1);
             x_error = gotoX - getX();
             y_error = gotoY - getY();
-            turnSpeed = Range.clip((gotoH - h) * TURN_SPEED * TURN_GAIN, -1, 1);
+            turnSpeed = autoAimController.getPowerToAngle(h, gotoH);
             preH = h;
 
             //drive robot
@@ -256,9 +247,6 @@ public class PinpointTrajectory {
                     -turnSpeed * motorPowerGain      
             );
 
-            //FTC Dashboard
-            packet.fieldOverlay().setRotation(-Math.toRadians(90)).setTranslation(4, -6 * 12 + 7).setStroke("blue").setStrokeWidth(1).strokeRect(gotoX - 8.5, gotoY - 9, 17, 18);
-            dashboard.sendTelemetryPacket(packet);   
             if (Globals.DEBUG) robot.sleep(200);
 
 
@@ -273,7 +261,6 @@ public class PinpointTrajectory {
             robot.telemetry.addData("X_POS", getX());
             robot.telemetry.addData("Y_POS", getY());
             robot.telemetry.addData("Heading", getHeading());
-            robot.telemetry.addData("TURN_GAIN", TURN_GAIN);
             robot.telemetry.addData("Voltage", robot.getVoltage());
             robot.telemetry.addData("MOTOR_GAIN", motorPowerGain);
             robot.telemetry.addData("Odo", robot.odo.getPosition().toString());
@@ -289,7 +276,6 @@ public class PinpointTrajectory {
             //            Log.i("X_POS", String.valueOf(getX()));
             //            Log.i("Y_POS", String.valueOf(getY()));
             //            Log.i("Heading", String.valueOf(getHeading()));
-            //            Log.i("TURN_GAIN", String.valueOf(TURN_GAIN));
             //            Log.i("Voltage", String.valueOf(robot.getVoltage()));
             //            Log.i("MOTOR_GAIN", String.valueOf(motorPowerGain));
             //            Log.i("Odo", robot.odo.getPosition().toString());

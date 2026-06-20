@@ -1,6 +1,6 @@
-package org.firstinspires.ftc.teamcode.common.hardwares.Gamepad;
+package org.firstinspires.ftc.teamcode.common.Gamepad;
 
-import org.firstinspires.ftc.teamcode.common.hardwares.Gamepad.controllers.Buttons;
+import org.firstinspires.ftc.teamcode.common.Gamepad.controllers.Buttons;
 
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;

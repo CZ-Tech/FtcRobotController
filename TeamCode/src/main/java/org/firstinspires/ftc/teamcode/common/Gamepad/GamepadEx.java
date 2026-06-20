@@ -1,13 +1,12 @@
-package org.firstinspires.ftc.teamcode.common.hardwares.Gamepad;
+package org.firstinspires.ftc.teamcode.common.Gamepad;
 
 import com.qualcomm.robotcore.hardware.Gamepad;
 
-import org.firstinspires.ftc.teamcode.common.hardwares.Gamepad.controllers.Buttons;
-import org.firstinspires.ftc.teamcode.common.hardwares.Gamepad.controllers.LinearReturns;
-import org.firstinspires.ftc.teamcode.common.hardwares.Gamepad.controllers.PositionReturns;
+import org.firstinspires.ftc.teamcode.common.Gamepad.controllers.Buttons;
+import org.firstinspires.ftc.teamcode.common.Gamepad.controllers.LinearReturns;
+import org.firstinspires.ftc.teamcode.common.Gamepad.controllers.PositionReturns;
 
 import java.util.EnumMap;
-import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;

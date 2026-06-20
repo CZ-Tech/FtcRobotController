@@ -1,4 +1,4 @@
-package org.firstinspires.ftc.teamcode.common.hardwares.Gamepad;
+package org.firstinspires.ftc.teamcode.common.Gamepad;
 
 import org.firstinspires.ftc.teamcode.common.Robot;
 import java.lang.reflect.Field;

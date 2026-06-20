@@ -1,4 +1,4 @@
-package org.firstinspires.ftc.teamcode.common.hardwares.Gamepad;//package org.firstinspires.ftc.teamcode.common.hardware.Gamepad;
+package org.firstinspires.ftc.teamcode.common.Gamepad;//package org.firstinspires.ftc.teamcode.common.hardware.Gamepad;
 
 //
 //public class ListEventGamepadExample extends LinearOpMode {
