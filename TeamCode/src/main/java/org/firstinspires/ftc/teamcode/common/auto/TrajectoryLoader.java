@@ -59,7 +59,8 @@ public class TrajectoryLoader {
             this.dHeading = json.optDouble("dHeading", 0);
             this.duration = json.optDouble("duration", 0);
             this.time = json.optDouble("time", 0);
-            this.marker = json.optString("marker", null);
+            String marker = json.optString("marker", null);
+            this.marker = (marker != null && !marker.isEmpty() && !"null".equals(marker)) ? marker : null;
             this.delayAfterArrive = json.optDouble("delayAfterArrive", 0);
         }
     }

@@ -27,7 +27,6 @@ public class PinpointTrajectory {
     //Constants
     public static double TURN_SPEED = 0.25;
     public static double P_DRIVE_STRAIGHT_GAIN = 0.07;
-    public static double TURN_DEAD_AREA = 1;  // 当角度误差小于该值(单位度)时不纠偏
     public static double motorVoltage = 12;
     public static double VOLTAGE_COMP_WEIGHT = 0.1; // 电压补偿权重，为0时完全禁用补偿，为1时完全启用
 
@@ -144,7 +143,7 @@ public class PinpointTrajectory {
     }
 
     public PinpointTrajectory delay(double t){
-        this.delayTime = 0;
+        this.delayTime = t;
         return this;
     }
 

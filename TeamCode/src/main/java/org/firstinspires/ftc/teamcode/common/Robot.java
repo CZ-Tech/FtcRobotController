@@ -13,6 +13,7 @@ import org.firstinspires.ftc.teamcode.common.Gamepad.GamepadEx;
 import org.firstinspires.ftc.teamcode.common.Gamepad.GamepadReflectBinder;
 import org.firstinspires.ftc.teamcode.solutions.hardware.WebCamAprilTag;
 import org.firstinspires.ftc.teamcode.common.interfaces.IVisionProvider;
+import org.firstinspires.ftc.teamcode.common.frames.HttpJsonService;
 import org.firstinspires.ftc.teamcode.common.util.Alliance;
 import org.firstinspires.ftc.teamcode.common.util.MixedTelemetry;
 import org.firstinspires.ftc.teamcode.solutions.chassis.MecanumChassis;
@@ -64,6 +65,8 @@ public class Robot {
         this.odoDrivetrain.setHeadingSource(() -> odo.getHeadingRadians());
 
         GamepadReflectBinder.bind(this);
+
+        HttpJsonService.setActiveRobot(this);
     }
 
     /**

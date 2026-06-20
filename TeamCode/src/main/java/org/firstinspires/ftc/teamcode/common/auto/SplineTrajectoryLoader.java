@@ -71,7 +71,8 @@ public class SplineTrajectoryLoader {
                 if (obj.has("wait")) {
                     // --- 等待点 ---
                     double waitSeconds = obj.getDouble("wait");
-                    String marker = obj.optString("marker", null);
+                    String rawMarker = obj.optString("marker", null);
+                    String marker = (rawMarker != null && !rawMarker.isEmpty() && !"null".equals(rawMarker)) ? rawMarker : null;
                     Runnable task = (marker != null) ? markerTasks.get(marker) : null;
 
                     if (task != null) {
@@ -88,7 +89,8 @@ public class SplineTrajectoryLoader {
                     double dx = obj.optDouble("dx", 0);
                     double dy = obj.optDouble("dy", 0);
                     double heading = obj.optDouble("heading", 0);
-                    String marker = obj.optString("marker", null);
+                    String rawMarker = obj.optString("marker", null);
+                    String marker = (rawMarker != null && !rawMarker.isEmpty() && !"null".equals(rawMarker)) ? rawMarker : null;
                     Runnable task = (marker != null) ? markerTasks.get(marker) : null;
 
                     if (isFirstWaypoint) {
