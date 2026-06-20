@@ -84,14 +84,13 @@ public class GamepadEx {
     }
 
     public void update() {
-        // 收集所有有注册监听器的按钮，每个按钮只消耗一次 SDK 边缘触发，
-        // 避免无监听器的按钮的边缘被提前消耗，使组合键模式可在回调中读取其他按钮状态。
+        // 只对使用边缘触发（onPress/onRelease/onToggle）的按钮缓存 SDK 状态，
+        // whileDown/whileUp 用 ifPressed() 电平触发，不消耗边缘，不加入缓存。
+        // 未注册任何边缘监听器的按钮保留原始边缘，使组合键模式可在回调中读取。
         Set<Buttons> activeButtons = EnumSet.noneOf(Buttons.class);
         for (EventBinding<?> b : onPressActions.values())     activeButtons.add(b.button);
         for (EventBinding<?> b : onReleaseActions.values())   activeButtons.add(b.button);
         for (EventBinding<?> b : onToggleActions.values())    activeButtons.add(b.button);
-        for (EventBinding<?> b : whileDownActions.values())    activeButtons.add(b.button);
-        for (EventBinding<?> b : whileUpActions.values())      activeButtons.add(b.button);
 
         // 统一在这里进行一次性读取，防止破坏性读取导致同一按钮的多个监听器看到不一致的状态
         Map<Buttons, Boolean> justPressedCache = new EnumMap<>(Buttons.class);
