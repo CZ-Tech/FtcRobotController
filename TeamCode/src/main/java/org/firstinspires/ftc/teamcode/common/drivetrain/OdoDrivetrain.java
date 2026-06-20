@@ -1,162 +1,114 @@
 package org.firstinspires.ftc.teamcode.common.drivetrain;
 
+import androidx.annotation.NonNull;
 
 import com.qualcomm.robotcore.hardware.DcMotor;
-import com.qualcomm.robotcore.hardware.DcMotorEx;
-import com.qualcomm.robotcore.util.ElapsedTime;
-import com.qualcomm.robotcore.util.Range;
 
-import org.firstinspires.ftc.robotcore.external.navigation.AngleUnit;
-import org.firstinspires.ftc.teamcode.common.Globals;
-import org.firstinspires.ftc.teamcode.common.Robot;
+import java.util.function.DoubleSupplier;
 
+/**
+ * 抽象底盘 —— 封装与底盘类型无关的通用驱控逻辑。
+ * <p>
+ * 维护两套头向体系：
+ * <ul>
+ *   <li><b>原始头向</b>（raw heading）—— 来自 {@link MixedOdo} 的场地绝对角，供自动使用</li>
+ *   <li><b>操作头向</b>（effective heading）—— 原始头向 + 操作手偏移，供 TeleOp 使用</li>
+ * </ul>
+ * 两套头向互不干扰：{@link #resetYaw()} 只修改操作头向偏移，不影响场地绝对坐标。
+ * <p>
+ * 子类需实现：
+ * <ul>
+ *   <li>{@link #driveRobot(double, double, double)} —— 底盘特有运动学</li>
+ *   <li>{@link #setMode()} —— 将电机设置为驱控就绪状态</li>
+ *   <li>{@link #stopMotor()} —— 停止所有电机</li>
+ * </ul>
+ *
+ * @see MecanumChassis
+ */
+public abstract class OdoDrivetrain {
 
-public class OdoDrivetrain {
-    private final Robot robot;
+    private DoubleSupplier rawHeadingSource = () -> 0.0;
 
-    public DcMotorEx driveLeftFront = null;
-    public DcMotorEx driveLeftBack = null;
-    public DcMotorEx driveRightFront = null;
-    public DcMotorEx driveRightBack = null;
-    public static double angleOffset = 0;
-    public double tempAngle = 0;
-    public double targetAngle = 0;
-    public static double TURN_RANGE = 5;
-    public static double TURN_SPEED = 0.4;
+    /** TeleOp 头向偏移量：操作手复位"前进方向"时修改此值 */
+    private double headingOffset = 0.0;
 
-    private double HEADING_ERROR = 0;
+    // ==========================================
+    // 朝向源与偏移管理
+    // ==========================================
 
-    public OdoDrivetrain(Robot robot) {
-        this.robot = robot;
-
-
-        // 确保下方与configure里设置的一致
-        driveLeftFront = robot.hardwareMap.get(DcMotorEx.class, Globals.LeftFrontMotor);
-        driveRightFront = robot.hardwareMap.get(DcMotorEx.class, Globals.RightFrontMotor);
-        driveRightBack = robot.hardwareMap.get(DcMotorEx.class, Globals.RightBackMotor);
-        driveLeftBack = robot.hardwareMap.get(DcMotorEx.class, Globals.LeftBackMotor);
-
-        // 确保控制4个电机正转向前。
-        driveLeftFront.setDirection(Globals.LeftFrontMotorDirection);
-        driveLeftBack.setDirection(Globals.LeftBackMotorDirection);
-        driveRightFront.setDirection(Globals.RightFrontMotoDirection);
-        driveRightBack.setDirection(Globals.RightBackMotorDirection);
-
-        setRunMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
-        this.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.FLOAT);
-
+    /** 设置原始头向数据源（通常来自 {@link MixedOdo#getHeadingRadians()}）。 */
+    public void setHeadingSource(@NonNull DoubleSupplier source) {
+        this.rawHeadingSource = source;
     }
 
-    private double reCulcGamepad(double v) {
-        if (v > 0.0) { //若手柄存在中位漂移或抖动就改0.01
-            v = 0.87 * v * v * v + 0.09;//0.09是23-24赛季底盘启动需要的功率
-        } else if (v < 0.0) { //若手柄存在中位漂移或抖动就改-0.01
-            v = 0.87 * v * v * v - 0.09; //三次方是摇杆曲线
-        } else {
-            // XBOX和罗技手柄死区较大无需设置中位附近
-            // 若手柄存在中位漂移或抖动就改成 v*=13
-            // 这里的13是上面的0.13/0.01=13
-            v = 0;
-        }
-        return v;
-    }
-
-    public void setShootAngle(double angle){
-        targetAngle = angle;
-    }
-
-    public static double VOLTAGE = 12;
-
-    public void driveRobot(double axial, double lateral, double yaw) {
-        // Combine the joystick requests for each axis-motion to determine each wheel's power.
-        // Set up a variable for each drive wheel to save the power level for telemetry.
-        // Denominator is the largest motor power (absolute value) or 1
-        // This ensures all the powers maintain the same ratio, but only when
-        // at least one is out of the range [-1, 1]
-        double denominator = Math.max(Math.abs(axial) + Math.abs(lateral) + Math.abs(yaw), 1);
-        double powerLeftFront = (axial + lateral + yaw) / denominator;
-        double powerRightFront = (axial - lateral - yaw) / denominator;
-        double powerLeftBack = (axial - lateral + yaw) / denominator;
-        double powerRightBack = (axial + lateral - yaw) / denominator;
-
-
-        // TODO: 电机测试代码。测试完可以注释掉。
-        if (Globals.DEBUG && robot.opMode.gamepad1.share) {
-            powerLeftFront = robot.opMode.gamepad1.x ? 0.3 : 0;
-            powerRightFront = robot.opMode.gamepad1.y ? 0.3 : 0;
-            powerLeftBack = robot.opMode.gamepad1.a ? 0.3 : 0;
-            powerRightBack = robot.opMode.gamepad1.b ? 0.3 : 0;
-        }
-
-        // Use existing function to drive both wheels.
-        robot.telemetry.addData("LF", powerLeftFront);
-        robot.telemetry.addData("RF", powerRightFront);
-        robot.telemetry.addData("LB", powerLeftBack);
-        robot.telemetry.addData("LR", powerRightBack);
-
-        double MOTOR_GAIN = Math.abs(VOLTAGE / robot.getVoltage());
-        setDrivePower(powerLeftFront, powerRightFront, powerLeftBack, powerRightBack);
-    }
-
-    public double getHeading(AngleUnit angleUnit) {
-//        robot.odo.update();
-//        YawPitchRollAngles orientation = robot.imu.getRobotYawPitchRollAngles();
-//        AngularVelocity velocity = robot.imu.getRobotAngularVelocity(AngleUnit.DEGREES);
-//
-//        return orientation.getYaw(angleUnit);
-        return angleUnit.fromDegrees(robot.odo.getHeading(AngleUnit.DEGREES) + angleOffset);
-    }
-
-//    public double getHeading(UnnormalizedAngleUnit unnormalizedAngleUnit) {
-////        robot.odo.update();
-//        return unnormalizedAngleUnit.fromDegrees(robot.odo.getHeading(unnormalizedAngleUnit) + angleOffset);
-//    }
-
+    /**
+     * 复位操作手"前进"方向。
+     * <p>
+     * 将当前朝向设为"前进"，后续操作头向相对于此方向。
+     * 不影响原始头向（自动阶段使用的场地绝对角）。
+     */
     public void resetYaw() {
-        tempAngle = getHeading(AngleUnit.DEGREES);
-        angleOffset = AngleUnit.DEGREES.normalize(angleOffset - tempAngle);
-
-        while(robot.opMode.gamepad1.share || robot.opMode.gamepad2.options);
+        headingOffset = -rawHeadingSource.getAsDouble();
     }
 
+    /**
+     * 获取操作头向 = 原始头向 + 操作手偏移（弧度）。
+     * 用于 TeleOp 场向驾驶。
+     */
+    private double getTeleOpHeading() {
+        double h = rawHeadingSource.getAsDouble() + headingOffset;
+        // 归一化到 (-PI, PI]
+        while (h > Math.PI) h -= 2 * Math.PI;
+        while (h <= -Math.PI) h += 2 * Math.PI;
+        return h;
+    }
 
+    /**
+     * 执行底盘驱控。由子类实现具体的运动学算法。
+     * <p>
+     * 三个分量均归一化到 [-1.0, 1.0]：
+     *
+     * @param axial   前进/后退（正值 = 前进）
+     * @param lateral 横移（正值 = 右移）
+     * @param yaw     转向（正值 = 顺时针）
+     */
+    public abstract void driveRobot(double axial, double lateral, double yaw);
+
+    /** 将电机设置为驱控就绪模式（如 RUN_WITHOUT_ENCODER + BRAKE）。 */
+    public abstract void setMode();
+
+    /** 设置电机运行模式（如 RUN_WITHOUT_ENCODER、RUN_USING_ENCODER 等）。 */
+    public abstract void setRunMode(DcMotor.RunMode mode);
+
+    /** 停止所有电机。 */
+    public abstract void stopMotor();
+
+    // ==========================================
+    // 场向驱控（三套入口）
+    // ==========================================
+
+    /** 场向驱控 —— <b>原始头向</b>（自动阶段）。 */
     public void driveRobotFieldCentric(double axial, double lateral, double yaw) {
-        double botHeading = getHeading(AngleUnit.RADIANS);
-        robot.telemetry.addData("heading", botHeading);
-        // Rotate the movement direction counter to the bot's rotation
-        double rotX = lateral * Math.cos(-botHeading) - axial * Math.sin(-botHeading);
-        double rotY = lateral * Math.sin(-botHeading) + axial * Math.cos(-botHeading);
+        driveRobotFieldCentric(axial, lateral, yaw, rawHeadingSource.getAsDouble());
+    }
+
+    /** 场向驱控 —— <b>操作头向</b>（TeleOp）。 */
+    public void driveRobotFieldCentricWithTeleOpHeadReset(double axial, double lateral, double yaw) {
+        driveRobotFieldCentric(axial, lateral, yaw, getTeleOpHeading());
+    }
+
+    /**
+     * 场向驱控 —— 显式头向。
+     * @param headingRad 朝向角（弧度），逆时针为正
+     */
+    public void driveRobotFieldCentric(double axial, double lateral, double yaw, double headingRad) {
+        double cos = Math.cos(-headingRad);
+        double sin = Math.sin(-headingRad);
+        double rotX = lateral * cos - axial * sin;
+        double rotY = lateral * sin + axial * cos;
         driveRobot(rotY, rotX, yaw);
     }
 
-    public void setDrivePower(double power) {
-        setDrivePower(power, power, power, power);
-    }
 
-    public void setDrivePower(double leftFrontPower, double rightFrontPower, double leftBackPower, double rightBackPower) {
-        // Output the values to the motor drives.
-        driveLeftFront.setPower(leftFrontPower);
-        driveRightFront.setPower(rightFrontPower);
-        driveLeftBack.setPower(leftBackPower);
-        driveRightBack.setPower(rightBackPower);
-    }
-
-    public void stopMotor() {
-        setDrivePower(0);
-    }
-
-    public void setRunMode(DcMotor.RunMode mode) {
-        driveLeftFront.setMode(mode);
-        driveRightFront.setMode(mode);
-        driveLeftBack.setMode(mode);
-        driveRightBack.setMode(mode);
-    }
-
-    public void setZeroPowerBehavior(DcMotor.ZeroPowerBehavior behavior) {
-        driveLeftFront.setZeroPowerBehavior(behavior);
-        driveRightFront.setZeroPowerBehavior(behavior);
-        driveLeftBack.setZeroPowerBehavior(behavior);
-        driveRightBack.setZeroPowerBehavior(behavior);
-    }
-
+    public abstract void setZeroPowerBehavior(DcMotor.ZeroPowerBehavior behavior);
 }

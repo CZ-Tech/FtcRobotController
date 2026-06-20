@@ -1,4 +1,4 @@
-package org.firstinspires.ftc.teamcode.common.util;
+package org.firstinspires.ftc.teamcode.common.frames;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
 
@@ -10,20 +10,20 @@ import android.util.Log;
 import com.qualcomm.robotcore.eventloop.opmode.OpModeManager;
 import com.qualcomm.robotcore.eventloop.opmode.OpModeRegistrar;
 
+import org.firstinspires.ftc.robotcore.external.navigation.AngleUnit;
+import org.firstinspires.ftc.robotcore.external.navigation.DistanceUnit;
+import org.firstinspires.ftc.robotcore.external.navigation.Pose2D;
 import org.firstinspires.ftc.robotcore.internal.opmode.InstanceOpModeManager;
 import org.firstinspires.ftc.robotcore.internal.opmode.InstanceOpModeRegistrar;
 import org.firstinspires.ftc.robotcore.internal.opmode.OpModeMeta;
 import org.firstinspires.ftc.robotcore.internal.opmode.RegisteredOpModes;
 import org.firstinspires.ftc.teamcode.common.Robot;
-import org.firstinspires.ftc.teamcode.common.TaskLoopFrame;
+import org.firstinspires.ftc.teamcode.common.drivetrain.MixedOdo;
+import org.firstinspires.ftc.teamcode.common.util.AutoTask;
+import org.firstinspires.ftc.teamcode.common.util.Param;
 import org.firstinspires.ftc.teamcode.opmode.auto.JsonPathOpMode;
 import org.json.JSONArray;
 import org.json.JSONObject;
-
-import org.firstinspires.ftc.robotcore.external.navigation.AngleUnit;
-import org.firstinspires.ftc.robotcore.external.navigation.DistanceUnit;
-import org.firstinspires.ftc.robotcore.external.navigation.Pose2D;
-import org.firstinspires.ftc.teamcode.common.drive.MixedOdo;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -34,7 +34,6 @@ import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.net.ServerSocket;
 import java.net.Socket;
-import java.nio.charset.StandardCharsets;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Deque;
@@ -544,7 +543,7 @@ public class HttpJsonService {
     /**
      * Read exactly {@code contentLength} bytes from the stream.
      * Content-Length is a byte count, not a character count — this is critical
-     * for correct UTF-8 handling when the body contains multi-byte characters.
+     * for correct UTF-8 handling when the body contains multibyte characters.
      */
     private static byte[] readBodyBytes(InputStream in, int contentLength) throws IOException {
         byte[] buffer = new byte[contentLength];
@@ -676,11 +675,7 @@ public class HttpJsonService {
             if (!commandRegistry.containsKey(commandName)) {
                 method.setAccessible(true);
                 Class<?>[] paramTypes = method.getParameterTypes();
-                java.lang.reflect.Parameter[] parameters = method.getParameters();
-                String[] paramNames = new String[parameters.length];
-                for (int i = 0; i < parameters.length; i++) {
-                    paramNames[i] = parameters[i].getName();
-                }
+                String[] paramNames = getParameterNames(method, paramTypes.length);
                 commandRegistry.put(commandName,
                         new CommandEntry(commandName, matchKey, null, method, paramTypes, paramNames, false));
                 Log.d(TAG, "Pre-registered command: " + commandName + " (" + clazz.getSimpleName() + ") [not ready]");
@@ -767,6 +762,28 @@ public class HttpJsonService {
                 }
             }
         }
+    }
+
+    /**
+     * 读取方法参数名：优先从 {@link Param} 注解获取，无注解时回退为 {@code "pN"}。
+     * <p>
+     * 替代 {@code java.lang.reflect.Parameter.getName()}，
+     * 兼容 Control Hub（Android API &lt; 26 / Java 8）。
+     */
+    private static String[] getParameterNames(Method method, int count) {
+        String[] names = new String[count];
+        java.lang.annotation.Annotation[][] anns = method.getParameterAnnotations();
+        for (int i = 0; i < count; i++) {
+            String name = null;
+            for (java.lang.annotation.Annotation a : anns[i]) {
+                if (a instanceof Param) {
+                    name = ((Param) a).value();
+                    break;
+                }
+            }
+            names[i] = (name != null) ? name : "p" + i;
+        }
+        return names;
     }
 
     /** Builds a unique match key: "fully.qualified.ClassName:methodName:paramType1,paramType2". */

@@ -1,29 +1,27 @@
 package org.firstinspires.ftc.teamcode.common.drivetrain;
 
-import static org.firstinspires.ftc.teamcode.common.Globals.UseVisionLocate;
-
 import android.util.Log;
 
-import com.qualcomm.hardware.gobilda.GoBildaPinpointDriver;
-import com.qualcomm.hardware.limelightvision.LLResult;
+import androidx.annotation.Nullable;
 
-import org.firstinspires.ftc.robotcore.external.hardware.camera.WebcamName;
+import com.qualcomm.hardware.gobilda.GoBildaPinpointDriver;
+
 import org.firstinspires.ftc.robotcore.external.navigation.AngleUnit;
 import org.firstinspires.ftc.robotcore.external.navigation.DistanceUnit;
 import org.firstinspires.ftc.robotcore.external.navigation.Pose2D;
-import org.firstinspires.ftc.robotcore.external.navigation.Pose3D;
 import org.firstinspires.ftc.robotcore.external.navigation.UnnormalizedAngleUnit;
 import org.firstinspires.ftc.teamcode.common.Globals;
 import org.firstinspires.ftc.teamcode.common.Robot;
 import org.firstinspires.ftc.teamcode.common.frames.TaskLoopFrame;
-import org.firstinspires.ftc.teamcode.common.hardwares.WebCamAprilTagLocate;
+import org.firstinspires.ftc.teamcode.common.interfaces.IOdometer;
+import org.firstinspires.ftc.teamcode.common.interfaces.IVisionProvider;
 import org.firstinspires.ftc.teamcode.common.util.Alliance;
 
 /**
  * 混合里程计系统 (纯偏移量架构)
  * 绝对不调用硬件的 resetPosAndIMU，完全通过 2D 刚体变换实现视觉定位与跨 OpMode 记忆。
  */
-public class MixedOdo {
+public class MixedOdo implements IOdometer {
     Robot robot;
     // ==========================================
     // 跨 OpMode 全局静态偏移量记忆
@@ -34,17 +32,19 @@ public class MixedOdo {
     public static double offsetHeading = 0.0;
 
     private final GoBildaPinpointDriver pinpoint;
-    private WebCamAprilTagLocate visualLocater;
+    @Nullable
+    private IVisionProvider visualLocater;
 
     private VisionInitTask initTask;
     private Pose2D currentFieldPose = new Pose2D(DistanceUnit.METER, 0, 0, AngleUnit.RADIANS, 0);
 
     private Alliance alliance;
 
-    public MixedOdo(Robot robot) {
+    public MixedOdo(Robot robot, @Nullable IVisionProvider visualLocater) {
         this.robot = robot;
         this.pinpoint = robot.hardwareMap.get(GoBildaPinpointDriver.class, Globals.odoName);
         this.alliance = robot.teamColor;
+        this.visualLocater = visualLocater;
 
         pinpoint.setOffsets(Globals.odoXOffset, Globals.odoYOffset, DistanceUnit.MM);
         pinpoint.setEncoderResolution(Globals.odoType);
@@ -55,9 +55,8 @@ public class MixedOdo {
         if (!isPoseInitialized) {
             pinpoint.resetPosAndIMU();
         }
-        if (UseVisionLocate) {
-            this.visualLocater = new WebCamAprilTagLocate(robot.hardwareMap.get(WebcamName.class, Globals.logiC270));
-        } else {
+        // 无视觉时直接标记已初始化
+        if (visualLocater == null) {
             isPoseInitialized = true;
         }
         pinpoint.update();
@@ -73,11 +72,8 @@ public class MixedOdo {
     }
 
     public void reCollaborate() {
-        if (UseVisionLocate) {
+        if (visualLocater != null) {
             isPoseInitialized = false;
-            if (visualLocater == null) {
-                this.visualLocater = new WebCamAprilTagLocate(robot.hardwareMap.get(WebcamName.class, Globals.logiC270));
-            }
             if (initTask == null || !initTask.isRunning()) {
                 initTask = new VisionInitTask(50, "VisionInitTask");
                 initTask.start();
@@ -90,6 +86,21 @@ public class MixedOdo {
 
     public void resetPosAndIMU() {
         setGlobalPose(new Pose2D(DistanceUnit.METER, 0, 0, AngleUnit.RADIANS, 0));
+    }
+
+    /**
+     * 仅重置朝向角，保持当前坐标不变。
+     */
+    public void resetHeading() {
+        Pose2D pos = getPosition();
+        setGlobalPose(new Pose2D(DistanceUnit.METER, pos.getX(DistanceUnit.METER), pos.getY(DistanceUnit.METER), AngleUnit.RADIANS, 0));
+    }
+
+    /**
+     * 以弧度获取当前朝向角，供 {@code DoubleSupplier} 使用。
+     */
+    public double getHeadingRadians() {
+        return getHeading(AngleUnit.RADIANS);
     }
 
     /**
@@ -146,6 +157,7 @@ public class MixedOdo {
      * 核心数学：根据视觉目标坐标，逆推并锁定全局偏移量 (Offset)
      */
     public synchronized void setGlobalPose(Pose2D targetFieldPose) {
+        pinpoint.update();
         Pose2D rawOdom = pinpoint.getPosition();
         double rawX = rawOdom.getX(DistanceUnit.METER);
         double rawY = rawOdom.getY(DistanceUnit.METER);
@@ -173,10 +185,10 @@ public class MixedOdo {
     private class VisionInitTask extends TaskLoopFrame {
         private static final int TARGET_FRAMES = 50;
 
-        // 大于2mm/s视为在移动
-        private static final double MOVEMENT_THRESHOLD_MM_PER_SEC = 2.0;
+        // 大于1mm/s视为在移动
+        private static final double MOVEMENT_THRESHOLD_MM_PER_SEC = 1.0;
         // 角速度阈值：大于 1 度/秒 认为被移动 (静止状态下通常是 0.0x 级别的底噪)
-        private static final double MOVEMENT_THRESHOLD_DEG_PER_SEC = 2.0;
+        private static final double MOVEMENT_THRESHOLD_DEG_PER_SEC = 1.0;
 
         private int framesCollected = 0;
         private double sumX = 0, sumY = 0;
@@ -204,9 +216,7 @@ public class MixedOdo {
                 return;
             }
 
-            robot.telemetry.addData("Odo Visual Initializing", "got "+framesCollected+"/"+TARGET_FRAMES);
-
-            double rates = pinpoint.getVelX(DistanceUnit.MM) + pinpoint.getVelY(DistanceUnit.MM);
+            robot.telemetry.addData("Odo Visual Initializing", "got " + framesCollected + "/" + TARGET_FRAMES);
 
             // 只要 X(Roll), Y(Pitch), Z(Yaw) 任意一轴的旋转速率超过阈值，说明被碰了
             boolean isMoving = Math.abs(pinpoint.getVelX(DistanceUnit.MM)) > MOVEMENT_THRESHOLD_MM_PER_SEC ||
@@ -215,28 +225,22 @@ public class MixedOdo {
 
             if (isMoving) {
                 // 如果检测到移动，清空所有视觉累加数据，重新开始
-                if (framesCollected > 0) {
-                    framesCollected = 0;
-                    sumX = 0; sumY = 0;
-                    sumSin = 0; sumCos = 0;
-                    Log.d(threadName, "Bump detected by Hub IMU! Restarting vision collection.");
-                    try {
-                        Thread.sleep(1000);
-                    } catch (InterruptedException e) {
-                        throw new RuntimeException(e);
-                    }
-                }
+                framesCollected = 0;
+                sumX = 0; sumY = 0;
+                sumSin = 0; sumCos = 0;
+                Log.d(threadName, "Bump detected by Hub IMU! Restarting vision collection.");
+                Robot.sleep(1000);
                 // 如果正在移动，本帧直接 return，不要把运动中模糊的 Limelight 画面加进去
                 return;
             }
 
             // 读取数据进行累加
-            Pose2D result = visualLocater.getPos();
+            double[] result = visualLocater.getFieldPose();
             if (result != null) {
-                sumX += result.getX(DistanceUnit.METER);
-                sumY += result.getY(DistanceUnit.METER);
+                sumX += result[0];  // x, 米
+                sumY += result[1];  // y, 米
 
-                double yawRad = result.getHeading(AngleUnit.RADIANS);
+                double yawRad = result[2];  // heading, 弧度
                 sumSin += Math.sin(yawRad);
                 sumCos += Math.cos(yawRad);
 

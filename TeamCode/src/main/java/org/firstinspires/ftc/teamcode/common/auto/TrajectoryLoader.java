@@ -1,6 +1,9 @@
-package org.firstinspires.ftc.teamcode.common.drive;
+package org.firstinspires.ftc.teamcode.common.auto;
+
+import android.util.Log;
 
 import org.firstinspires.ftc.robotcore.external.navigation.Pose2D;
+import org.firstinspires.ftc.teamcode.common.frames.HttpJsonService;
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -45,6 +48,7 @@ public class TrajectoryLoader {
         public double duration;
         public double time;
         public String marker;
+        public double delayAfterArrive;
 
         public Keyframe(JSONObject json) {
             this.x = json.optDouble("x", 0);
@@ -56,6 +60,7 @@ public class TrajectoryLoader {
             this.duration = json.optDouble("duration", 0);
             this.time = json.optDouble("time", 0);
             this.marker = json.optString("marker", null);
+            this.delayAfterArrive = json.optDouble("delayAfterArrive", 0);
         }
     }
 
@@ -65,6 +70,7 @@ public class TrajectoryLoader {
      * @param jsonString The JSON string containing an array of keyframes.
      */
     public void execute(String jsonString) {
+        HttpJsonService.scanObjectTree(trajectory.getRobot());
         try {
             JSONArray jsonArray = new JSONArray(jsonString);
             List<Keyframe> keyframes = new ArrayList<>();
@@ -74,10 +80,12 @@ public class TrajectoryLoader {
                 JSONObject obj = jsonArray.getJSONObject(i);
                 Keyframe kf = new Keyframe(obj);
                 if (obj.has("time")) {
-                    cumulativeTime = kf.time;
+                    kf.time = obj.getDouble("time");
+                    cumulativeTime = kf.time + kf.delayAfterArrive;
                 } else {
                     cumulativeTime += kf.duration;
                     kf.time = cumulativeTime;
+                    cumulativeTime += kf.delayAfterArrive;
                 }
                 keyframes.add(kf);
             }
@@ -109,7 +117,7 @@ public class TrajectoryLoader {
                             kf.heading
                     ));
 
-                    // 初始化起始点。注意：PinpointTrajectory 会将此点记为 startPoint
+                    // 初始化起始点
                     if (task != null) {
                         trajectory.startMove(kf.x, kf.y, kf.dx, kf.dy, task);
                     } else {
@@ -120,14 +128,18 @@ public class TrajectoryLoader {
                     trajectory.heading = kf.heading;
                     trajectory.preH = kf.heading;
                 } else {
-                    // 按照时间线执行后续点
                     if (task != null) {
+                        Log.i("Auto", kf.marker);
                         trajectory.addPoint(kf.time, kf.x, kf.y, kf.dx, kf.dy, kf.heading, task);
                     } else {
                         trajectory.addPoint(kf.time, kf.x, kf.y, kf.dx, kf.dy, kf.heading);
                     }
                 }
+
+                // 添加等待
+                trajectory.addTime(kf.time + kf.delayAfterArrive);
             }
+
         } catch (JSONException e) {
             e.printStackTrace();
         }

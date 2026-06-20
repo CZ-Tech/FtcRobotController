@@ -4,6 +4,7 @@ import static org.firstinspires.ftc.teamcode.common.Globals.PID_THREAD_Hz;
 
 import org.firstinspires.ftc.teamcode.common.frames.TaskLoopFrame;
 
+import java.util.Arrays;
 import java.util.function.DoubleBinaryOperator;
 import java.util.function.DoubleConsumer;
 import java.util.function.DoubleSupplier;
@@ -22,7 +23,7 @@ public class PIDController extends TaskLoopFrame {
     private double maxIntegral = Double.MAX_VALUE;
     private double minIntegral = -Double.MAX_VALUE;
 
-    private double setpoint;
+    private volatile double setpoint;
     private final DoubleSupplier pvProvider;
     private final DoubleSupplier timeProvider;
     private final DoubleConsumer outputConsumer;
@@ -31,10 +32,17 @@ public class PIDController extends TaskLoopFrame {
 
     // 用于计算速度和加速度的状态变量
     private double previousPV = 0.0;
-    private double previousVelocity = 0.0;
-    private double currentVelocity = 0.0;
     private double currentAcceleration = 0.0;
     private boolean isFirstRun = true;
+
+    // 速度滤波
+    public static int VelFilterWindowSize = 4;
+    public double[] shootVelWindow = new double[VelFilterWindowSize];
+    private int currentShootVelWindowIndex = 0;
+    private double filteredSpeed = 0.0;
+    private boolean filterInitialized = false;
+
+    private volatile boolean shouldMotorRun = false;
 
     private double lastOutput = 0;
 
@@ -42,8 +50,9 @@ public class PIDController extends TaskLoopFrame {
         private double lastNano = System.nanoTime();
         @Override
         public double getAsDouble() {
-            double delta = System.nanoTime() - lastNano;
-            lastNano = System.nanoTime();
+            double now = System.nanoTime();
+            double delta = now - lastNano;
+            lastNano = now;
             return delta * 1e-9;
         }
     }
@@ -83,6 +92,7 @@ public class PIDController extends TaskLoopFrame {
     public void setTarget(double target) {
         setpoint = target;
         this.start();
+        startMotor();
     }
 
     public double getTarget() {
@@ -116,6 +126,8 @@ public class PIDController extends TaskLoopFrame {
     public void reset() {
         this.integral = 0.0;
         this.previousError = 0.0;
+        this.isFirstRun = true;
+        this.filterInitialized = false;
     }
 
     /**
@@ -125,9 +137,12 @@ public class PIDController extends TaskLoopFrame {
 
         double dt = timeProvider.getAsDouble();
 
+        updateFilter(pvProvider.getAsDouble(), dt);
+
         // 如果 dt 超过设定刷新时间的十倍，说明线程刚恢复或发生了严重卡顿
-        if (dt > targetUpdateMs * 10) {
+        if (dt > targetUpdateMs * 10 / 1000.0) { // targetUpdateMs 是毫秒，dt 是秒
             dt = 0; // 丢弃这一帧的异常时间，防止积分爆炸
+            isFirstRun = true; // 强制重置状态防止微分项突变
         }
 
         // 防止除以0或负时间导致的异常
@@ -135,25 +150,20 @@ public class PIDController extends TaskLoopFrame {
             return;
         }
 
-        double processVariable = pvProvider.getAsDouble();
-
-        if (isFirstRun) {
-            previousPV = processVariable;
-            previousVelocity = 0.0;
-            currentVelocity = 0.0;
-            currentAcceleration = 0.0;
-            isFirstRun = false;
-        } else {
-            currentVelocity = (processVariable - previousPV) / dt;
-            currentAcceleration = (currentVelocity - previousVelocity) / dt;
-
-            previousPV = processVariable;
-            previousVelocity = currentVelocity;
-        }
-        
+        double processVariable = getVelocity();
 
         // 1. 计算当前误差
         double error = setpoint - processVariable;
+
+        if (isFirstRun) {
+            previousPV = processVariable;
+            previousError = error; // 同步误差
+            currentAcceleration = 0.0;
+            isFirstRun = false;
+        } else {
+            currentAcceleration = (processVariable - previousPV) / dt;
+            previousPV = processVariable;
+        }
 
         // 2. 比例项 (Proportional)
         double pTerm = P * error;
@@ -174,7 +184,9 @@ public class PIDController extends TaskLoopFrame {
         // 6. 记录本次误差，供下次微分计算使用
         previousError = error;
 
-        if (lastOutput <= 1e-5) {
+        // 只有当目标值为 0 且误差极小时才主动停止电机，而不是简单按输出大小判断
+        if (Math.abs(setpoint) < 1.0 && Math.abs(error) < 5.0) {
+            lastOutput = 0.0;
             outputConsumer.accept(0.0);
             return;
         }
@@ -191,7 +203,37 @@ public class PIDController extends TaskLoopFrame {
      */
     @Override
     public void update() {
-        compute();
+        if (shouldMotorRun) compute();
+        else outputConsumer.accept(0.0);
+    }
+
+    private void updateFilter(double rawVel, double dt) {
+        // 处理长时间停止后的重置逻辑 (假设阈值 0.5 秒)
+        if (dt > 0.5) {
+            Arrays.fill(shootVelWindow, rawVel);
+            filteredSpeed = rawVel;
+            filterInitialized = true;
+            return;
+        }
+
+        // 首次启动：用当前原始值填满窗口，避免零初值导致启动时速度被低估
+        if (!filterInitialized) {
+            Arrays.fill(shootVelWindow, rawVel);
+            filteredSpeed = rawVel;
+            filterInitialized = true;
+            return;
+        }
+
+        // 更新循环队列
+        shootVelWindow[currentShootVelWindowIndex] = rawVel;
+        currentShootVelWindowIndex = (currentShootVelWindowIndex + 1) % shootVelWindow.length;
+
+        // 计算平均值
+        double totalVel = 0.0;
+        for (double v : shootVelWindow) {
+            totalVel += v;
+        }
+        filteredSpeed = totalVel / shootVelWindow.length;
     }
 
     /**
@@ -199,8 +241,8 @@ public class PIDController extends TaskLoopFrame {
      */
     @Override
     public void onStop() {
-        super.stop();
         outputConsumer.accept(0.0);
+        shouldMotorRun = false;
     }
 
     /**
@@ -216,8 +258,16 @@ public class PIDController extends TaskLoopFrame {
 
     @Override
     public void onStart() {
-        super.start();
         reset();
+        shouldMotorRun = true;
+    }
+
+    public void startMotor() {
+        shouldMotorRun = true;
+    }
+
+    public void stopMotor() {
+        shouldMotorRun = false;
     }
 
     /**
@@ -232,7 +282,7 @@ public class PIDController extends TaskLoopFrame {
      * 单位：[PV单位] / 秒
      */
     public double getVelocity() {
-        return currentVelocity;
+        return filteredSpeed;
     }
 
     /**

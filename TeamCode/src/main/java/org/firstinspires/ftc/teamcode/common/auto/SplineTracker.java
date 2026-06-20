@@ -1,4 +1,4 @@
-package org.firstinspires.ftc.teamcode.common.drive;
+package org.firstinspires.ftc.teamcode.common.auto;
 
 import com.qualcomm.robotcore.hardware.DcMotor;
 import com.qualcomm.robotcore.util.ElapsedTime;
