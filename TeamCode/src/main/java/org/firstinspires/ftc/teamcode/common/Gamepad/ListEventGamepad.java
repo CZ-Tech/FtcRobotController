@@ -28,7 +28,7 @@ import java.util.function.Consumer;
  *
  * // 示例：当 'X' 键被按住时，启动一个马达。
  * eventGamepad.listen(Buttons.X)
- *             .whenDown(pressCount -> myMotor.setPower(0.5));
+*             .whileDown(pressCount -> myMotor.setPower(0.5));
  *
  * // 示例：当 'X' 键被释放时，停止马达。
  * eventGamepad.listen(Buttons.X)
@@ -91,8 +91,8 @@ public class ListEventGamepad {
         private final CopyOnWriteArrayList<Runnable> onReleaseActions = new CopyOnWriteArrayList<>();
         private final CopyOnWriteArrayList<Consumer<Integer>> onToggleActions = new CopyOnWriteArrayList<>();
 
-        private final CopyOnWriteArrayList<Runnable> whenDownActions = new CopyOnWriteArrayList<>();
-        private final CopyOnWriteArrayList<Runnable> whenUpActions = new CopyOnWriteArrayList<>();
+        private final CopyOnWriteArrayList<Runnable> whileDownActions = new CopyOnWriteArrayList<>();
+        private final CopyOnWriteArrayList<Runnable> whileUpActions = new CopyOnWriteArrayList<>();
 
         // --- 状态追踪 ---
         private int pressCount = 0;
@@ -121,9 +121,9 @@ public class ListEventGamepad {
             }
 
             if (button.ifPressed(gamepad)) {
-                for (Runnable action : whenDownActions) action.run();
+                for (Runnable action : whileDownActions) action.run();
             } else {
-                for (Runnable action : whenUpActions) action.run();
+                for (Runnable action : whileUpActions) action.run();
             }
         }
 
@@ -147,13 +147,13 @@ public class ListEventGamepad {
             return ListEventGamepad.this;
         }
 
-        public ListEventGamepad whenDown(Runnable action) {
-            whenDownActions.add(action);
+        public ListEventGamepad whileDown(Runnable action) {
+            whileDownActions.add(action);
             return ListEventGamepad.this;
         }
 
-        public ListEventGamepad whenUp(Runnable action) {
-            whenUpActions.add(action);
+        public ListEventGamepad whileUp(Runnable action) {
+            whileUpActions.add(action);
             return ListEventGamepad.this;
         }
 

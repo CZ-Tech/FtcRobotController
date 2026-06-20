@@ -19,8 +19,8 @@ public class Solo extends LinearOpMode {
                 .LEFT_STICK_BUTTON.onPress(() -> telemetry.addLine("Button.LEFT_STICK_BUTTON - Pressed"))
                 .DPAD_UP          .onPress(() -> telemetry.addLine("Button.DPAD_UP - Pressed"))
                 .LEFT_BUMPER      .onPress(() -> telemetry.addLine("Button.LEFT_BUMPER - Pressed"))
-                .A                .whenUp(() -> telemetry.addLine("Button.A - KeyUp"))
-                .A                .whenDown(() -> telemetry.addLine("Button.A - KeyDown"))
+                .A                .whileUp(() -> telemetry.addLine("Button.A - KeyUp"))
+                .A                .whileDown(() -> telemetry.addLine("Button.A - KeyDown"))
                 .CROSS            .onPress(
                         (i) -> {
                             if (i%2 == 1) telemetry.addLine("Button.A - KeyToggle 1");

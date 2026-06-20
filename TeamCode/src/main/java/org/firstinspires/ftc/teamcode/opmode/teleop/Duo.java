@@ -24,8 +24,8 @@ public class Duo extends LinearOpMode {
                 .LEFT_STICK_BUTTON.onPress(() -> telemetry.addLine("Button.LEFT_STICK_BUTTON - Pressed"))
                 .DPAD_UP          .onPress(() -> telemetry.addLine("Button.DPAD_UP - Pressed"))
                 .LEFT_BUMPER      .onPress(() -> telemetry.addLine("Button.LEFT_BUMPER - Pressed"))
-                .A                .whenUp(() -> telemetry.addLine("Button.A - KeyUp"))
-                .A                .whenDown(() -> telemetry.addLine("Button.A - KeyDown"))
+                .A                .whileUp(() -> telemetry.addLine("Button.A - KeyUp"))
+                .A                .whileDown(() -> telemetry.addLine("Button.A - KeyDown"))
                 .CROSS            .onPress(
                         (i) -> {
                             if (i%2 == 1) telemetry.addLine("Button.A - KeyToggle 1");
@@ -46,14 +46,14 @@ public class Duo extends LinearOpMode {
         }
     }
 
-    @GamepadBind(gamepad = 1, button = Buttons.LEFT_BUMPER, actionType = GamepadEx.ActionType.WHEN_DOWN, activeIn = DuoRed.class)
+    @GamepadBind(gamepad = 1, button = Buttons.LEFT_BUMPER, actionType = GamepadEx.ActionType.WHILE_DOWN, activeIn = DuoRed.class)
     public void forward() {
         robot.odoDrivetrain.driveRobotFieldCentric(
                 1, 0, 0
         );
     }
 
-    @GamepadBind(gamepad = 1, button = Buttons.SHARE, actionType = GamepadEx.ActionType.WHEN_DOWN)
+    @GamepadBind(gamepad = 1, button = Buttons.SHARE, actionType = GamepadEx.ActionType.WHILE_DOWN)
     public void resetOdo() {
         Log.d("sss", "test");
         if (Buttons.OPTIONS.wasJustPressed(robot.opMode.gamepad1)) {

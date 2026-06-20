@@ -7,7 +7,9 @@ import org.firstinspires.ftc.teamcode.common.Gamepad.controllers.LinearReturns;
 import org.firstinspires.ftc.teamcode.common.Gamepad.controllers.PositionReturns;
 
 import java.util.EnumMap;
+import java.util.EnumSet;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.BooleanSupplier;
@@ -21,8 +23,8 @@ public class GamepadEx {
     private final Map<String, EventBinding<Runnable>> onPressActions = new ConcurrentHashMap<>();
     private final Map<String, EventBinding<Runnable>> onReleaseActions = new ConcurrentHashMap<>();
     private final Map<String, EventBinding<Consumer<Integer>>> onToggleActions = new ConcurrentHashMap<>();
-    private final Map<String, EventBinding<Runnable>> whenDownActions = new ConcurrentHashMap<>();
-    private final Map<String, EventBinding<Runnable>> whenUpActions = new ConcurrentHashMap<>();
+    private final Map<String, EventBinding<Runnable>> whileDownActions = new ConcurrentHashMap<>();
+    private final Map<String, EventBinding<Runnable>> whileUpActions = new ConcurrentHashMap<>();
 
     private final AtomicInteger anonymousCounter = new AtomicInteger(0);
 
@@ -68,8 +70,8 @@ public class GamepadEx {
         ON_PRESS,
         ON_RELEASE,
         ON_TOGGLE,
-        WHEN_DOWN,
-        WHEN_UP
+        WHILE_DOWN,
+        WHILE_UP
     }
 
     /**
@@ -82,13 +84,21 @@ public class GamepadEx {
     }
 
     public void update() {
-        // 统一在这里进行一次性读取，防止破坏性读取导致后续wasJustPressed
+        // 收集所有有注册监听器的按钮，每个按钮只消耗一次 SDK 边缘触发，
+        // 避免无监听器的按钮的边缘被提前消耗，使组合键模式可在回调中读取其他按钮状态。
+        Set<Buttons> activeButtons = EnumSet.noneOf(Buttons.class);
+        for (EventBinding<?> b : onPressActions.values())     activeButtons.add(b.button);
+        for (EventBinding<?> b : onReleaseActions.values())   activeButtons.add(b.button);
+        for (EventBinding<?> b : onToggleActions.values())    activeButtons.add(b.button);
+        for (EventBinding<?> b : whileDownActions.values())    activeButtons.add(b.button);
+        for (EventBinding<?> b : whileUpActions.values())      activeButtons.add(b.button);
+
+        // 统一在这里进行一次性读取，防止破坏性读取导致同一按钮的多个监听器看到不一致的状态
         Map<Buttons, Boolean> justPressedCache = new EnumMap<>(Buttons.class);
         Map<Buttons, Boolean> justReleasedCache = new EnumMap<>(Buttons.class);
-
-        for (ButtonHandler handler : allHandlers) {
-            justPressedCache.put(handler.button, handler.button.wasJustPressed(gamepad));
-            justReleasedCache.put(handler.button, handler.button.wasJustReleased(gamepad));
+        for (Buttons button : activeButtons) {
+            justPressedCache.put(button, button.wasJustPressed(gamepad));
+            justReleasedCache.put(button, button.wasJustReleased(gamepad));
         }
 
         for (EventBinding<Runnable> b : onPressActions.values()) {
@@ -105,10 +115,10 @@ public class GamepadEx {
         for (EventBinding<Runnable> b : onReleaseActions.values()) {
             if (Boolean.TRUE.equals(justReleasedCache.get(b.button))) b.action.run();
         }
-        for (EventBinding<Runnable> b : whenDownActions.values()) {
+        for (EventBinding<Runnable> b : whileDownActions.values()) {
             if (b.button.ifPressed(gamepad)) b.action.run();
         }
-        for (EventBinding<Runnable> b : whenUpActions.values()) {
+        for (EventBinding<Runnable> b : whileUpActions.values()) {
             if (!b.button.ifPressed(gamepad)) b.action.run();
         }
     }
@@ -166,17 +176,17 @@ public class GamepadEx {
             return GamepadEx.this;
         }
 
-        public GamepadEx whenDown(Runnable action) {
+        public GamepadEx whileDown(Runnable action) {
             checkStateAndThrow();
             String key = button.name() + "_ANON_" + anonymousCounter.getAndIncrement();
-            whenDownActions.put(key, new EventBinding<>(button, action));
+            whileDownActions.put(key, new EventBinding<>(button, action));
             return GamepadEx.this;
         }
 
-        public GamepadEx whenUp(Runnable action) {
+        public GamepadEx whileUp(Runnable action) {
             checkStateAndThrow();
             String key = button.name() + "_ANON_" + anonymousCounter.getAndIncrement();
-            whenUpActions.put(key, new EventBinding<>(button, action));
+            whileUpActions.put(key, new EventBinding<>(button, action));
             return GamepadEx.this;
         }
 
@@ -202,15 +212,15 @@ public class GamepadEx {
             return GamepadEx.this;
         }
 
-        public GamepadEx whenDown(String id, Runnable action) {
+        public GamepadEx whileDown(String id, Runnable action) {
             String key = button.name() + "_" + id;
-            whenDownActions.put(key, new EventBinding<>(button, action));
+            whileDownActions.put(key, new EventBinding<>(button, action));
             return GamepadEx.this;
         }
 
-        public GamepadEx whenUp(String id, Runnable action) {
+        public GamepadEx whileUp(String id, Runnable action) {
             String key = button.name() + "_" + id;
-            whenUpActions.put(key, new EventBinding<>(button, action));
+            whileUpActions.put(key, new EventBinding<>(button, action));
             return GamepadEx.this;
         }
 

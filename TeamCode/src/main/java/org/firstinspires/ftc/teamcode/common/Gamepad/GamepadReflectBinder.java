@@ -103,8 +103,8 @@ public class GamepadReflectBinder {
                         switch (annotation.actionType()) {
                             case ON_PRESS:   if(hasId) handler.onPress(annotation.id(), action);   else handler.onPress(action); break;
                             case ON_RELEASE: if(hasId) handler.onRelease(annotation.id(), action); else handler.onRelease(action); break;
-                            case WHEN_DOWN:  if(hasId) handler.whenDown(annotation.id(), action);  else handler.whenDown(action); break;
-                            case WHEN_UP:    if(hasId) handler.whenUp(annotation.id(), action);    else handler.whenUp(action); break;
+                            case WHILE_DOWN: if(hasId) handler.whileDown(annotation.id(), action); else handler.whileDown(action); break;
+                            case WHILE_UP:   if(hasId) handler.whileUp(annotation.id(), action);    else handler.whileUp(action); break;
                         }
                     }
                 } catch (IllegalArgumentException e) {
